@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Neon Snake — jeu d'arcade</title>
+<meta name="description" content="Un Snake arcade moderne : power-ups, combos et scores locaux. Jouable au clavier et au tactile.">
+<meta name="theme-color" content="#0b0f1a">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230b0f1a'/><rect x='6' y='14' width='14' height='5' rx='2.5' fill='%2338f9c3'/><circle cx='24' cy='16' r='3.5' fill='%23ff5d8f'/></svg>">
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="hud">
+    <div class="stat">
+      <span class="stat-label">Score</span>
+      <strong id="score" class="stat-value">0</strong>
+    </div>
+    <div class="stat stat-combo" id="comboBox" hidden>
+      <span class="stat-label">Combo</span>
+      <strong id="combo" class="stat-value">x1</strong>
+    </div>
+    <div class="stat stat-right">
+      <span class="stat-label">Record</span>
+      <strong id="best" class="stat-value">0</strong>
+    </div>
+  </header>
+
+  <main class="board-wrap">
+    <canvas id="board" width="640" height="640" aria-label="Plateau de jeu"></canvas>
+
+    <div class="effects" id="effects" aria-live="polite"></div>
+
+    <div class="overlay" id="overlay">
+      <div class="panel" id="panel">
+        <h1 class="title">Neon <span>Snake</span></h1>
+        <p class="subtitle" id="subtitle">Mange, grandis, évite ta propre queue.</p>
+
+        <div class="field" id="difficultyField">
+          <span class="field-label">Difficulté</span>
+          <div class="choices" id="difficulty" role="radiogroup" aria-label="Difficulté">
+            <button type="button" class="choice" data-diff="easy" role="radio" aria-checked="false">Facile</button>
+            <button type="button" class="choice is-active" data-diff="normal" role="radio" aria-checked="true">Normal</button>
+            <button type="button" class="choice" data-diff="hard" role="radio" aria-checked="false">Difficile</button>
+          </div>
+          <p class="field-hint" id="diffHint">Murs mortels, vitesse progressive.</p>
+        </div>
+
+        <div class="scoreboard" id="scoreboard" hidden>
+          <div class="score-line"><span>Score</span><strong id="finalScore">0</strong></div>
+          <div class="score-line"><span>Longueur</span><strong id="finalLength">0</strong></div>
+          <div class="score-line"><span>Record</span><strong id="finalBest">0</strong></div>
+        </div>
+
+        <button type="button" class="cta" id="playBtn">Jouer</button>
+        <p class="hint" id="hint">Flèches / WASD / ZQSD — <kbd>Espace</kbd> pour mettre en pause</p>
+      </div>
+    </div>
+  </main>
+
+  <div class="toolbar">
+    <button type="button" class="tool" id="pauseBtn" aria-label="Pause">❚❚</button>
+    <button type="button" class="tool" id="soundBtn" aria-pressed="true" aria-label="Son">♪</button>
+    <button type="button" class="tool" id="restartBtn" aria-label="Recommencer">↺</button>
+  </div>
+
+  <div class="dpad" id="dpad" aria-hidden="true">
+    <button type="button" class="pad pad-up" data-dir="up">▲</button>
+    <button type="button" class="pad pad-left" data-dir="left">◀</button>
+    <button type="button" class="pad pad-right" data-dir="right">▶</button>
+    <button type="button" class="pad pad-down" data-dir="down">▼</button>
+  </div>
+
+  <footer class="legend">
+    <span><i class="dot dot-apple"></i>Pomme +10</span>
+    <span><i class="dot dot-gold"></i>Or +50</span>
+    <span><i class="dot dot-slow"></i>Ralenti</span>
+    <span><i class="dot dot-ghost"></i>Fantôme</span>
+  </footer>
+
+</div>
+<script src="src/game.js"></script>
+</body>
+</html>
