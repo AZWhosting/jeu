@@ -1,22 +1,27 @@
-/* Neon Snake — panneaux secondaires : succès, skins, statistiques, réglages.
-   Le contenu est construit en JavaScript ; le moteur ne connaît que l'API publique. */
-window.Sheets = (function () {
+/* Socle — panneaux succès / skins / statistiques / réglages, et notifications.
+   Le contenu est entièrement dérivé du manifeste du jeu et de sa progression. */
+window.Core = window.Core || {};
+
+Core.createSheets = function (progress, hooks) {
   'use strict';
 
-  var P = window.Progress;
-  var hooks = {};
+  var manifest = progress.manifest;
   var sheet, body, tabsBox, toasts;
   var activeTab = 'achievements';
   var resetArmed = false;
+  hooks = hooks || {};
 
   var TABS = [
     { id: 'achievements', label: 'Succès' },
-    { id: 'skins',        label: 'Skins' },
+    { id: 'skins',        label: 'Skins', needsSkins: true },
     { id: 'stats',        label: 'Stats' },
     { id: 'settings',     label: 'Réglages' }
-  ];
+  ].filter(function (tab) { return !tab.needsSkins || progress.skins().length > 1; });
 
-  var DIFFICULTY_LABELS = { easy: 'Facile', normal: 'Normal', hard: 'Difficile', zen: 'Zen' };
+  function difficultyLabel(id) {
+    var d = progress.difficultyById(id);
+    return d ? d.label : id;
+  }
 
   /* ------------------------------------------------------------------ */
   /* Formats                                                             */
@@ -42,7 +47,7 @@ window.Sheets = (function () {
   }
 
   /* ------------------------------------------------------------------ */
-  /* Courbe des scores (une seule série : pas de légende, hue unique)     */
+  /* Courbe des scores (série unique : pas de légende, teinte unique)     */
   /* ------------------------------------------------------------------ */
 
   function barPath(x, y, w, h, r) {
@@ -89,7 +94,7 @@ window.Sheets = (function () {
       return node;
     }
 
-    // Ligne de repère : la moyenne, en gris, discrète.
+    // Ligne de repère : la moyenne, discrète, sans étiquette dans le tracé.
     var meanY = PAD_TOP + plot - (mean / max) * plot;
     add('line', { x1: 0, y1: meanY, x2: W, y2: meanY, class: 'spark-mean' });
 
@@ -100,7 +105,7 @@ window.Sheets = (function () {
       var bar = add('path', { d: barPath(x, y, barW, h, 4), class: 'spark-bar' });
       var when = new Date(run.t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
       var title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-      title.textContent = run.s + ' points — ' + (DIFFICULTY_LABELS[run.d] || run.d) + ' — ' + when;
+      title.textContent = run.s + ' points — ' + difficultyLabel(run.d) + ' — ' + when;
       bar.appendChild(title);
 
       // Étiquettes directes sur les deux seules valeurs qui comptent.
@@ -110,16 +115,15 @@ window.Sheets = (function () {
           y: i === maxIndex ? y - 4 : H - 4,
           class: 'spark-label',
           'text-anchor': 'middle'
-        }, i === maxIndex ? num(run.s) : num(run.s));
+        }, num(run.s));
       }
     });
 
-    // Ligne de base.
     add('line', { x1: 0, y1: PAD_TOP + plot, x2: W, y2: PAD_TOP + plot, class: 'spark-axis' });
 
     wrap.appendChild(svg);
     wrap.appendChild(el('p', 'chart-note',
-      recent.length + ' dernières parties, mode zen exclu — ligne pointillée : moyenne de ' +
+      recent.length + ' dernières parties classées — ligne pointillée : moyenne de ' +
       num(mean) + ' points.'));
     return wrap;
   }
@@ -129,22 +133,23 @@ window.Sheets = (function () {
   /* ------------------------------------------------------------------ */
 
   function renderAchievements() {
-    var owned = P.unlocked();
-    var count = P.ACHIEVEMENTS.filter(function (a) { return owned[a.id]; }).length;
+    var list = progress.achievements();
+    var owned = progress.unlocked();
+    var count = list.filter(function (a) { return owned[a.id]; }).length;
     var frag = document.createDocumentFragment();
 
     var head = el('div', 'progress-head');
-    head.appendChild(el('span', null, count + ' / ' + P.ACHIEVEMENTS.length + ' débloqués'));
+    head.appendChild(el('span', null, count + ' / ' + list.length + ' débloqués'));
     frag.appendChild(head);
 
     var bar = el('div', 'progress-bar');
     var fill = el('div', 'progress-fill');
-    fill.style.width = (count / P.ACHIEVEMENTS.length * 100) + '%';
+    fill.style.width = (list.length ? count / list.length * 100 : 0) + '%';
     bar.appendChild(fill);
     frag.appendChild(bar);
 
-    var list = el('div', 'cards');
-    P.ACHIEVEMENTS.forEach(function (a) {
+    var cards = el('div', 'cards');
+    list.forEach(function (a) {
       var got = owned[a.id];
       var card = el('div', 'card' + (got ? ' is-on' : ''));
       card.appendChild(el('span', 'card-badge', got ? '✓' : '🔒'));
@@ -152,46 +157,41 @@ window.Sheets = (function () {
       text.appendChild(el('strong', null, a.name));
       text.appendChild(el('span', null, a.desc));
       if (got) {
-        text.appendChild(el('em', 'card-date',
-          'débloqué le ' + new Date(got).toLocaleDateString('fr-FR')));
+        text.appendChild(el('em', 'card-date', 'débloqué le ' + new Date(got).toLocaleDateString('fr-FR')));
       }
       card.appendChild(text);
-      list.appendChild(card);
+      cards.appendChild(card);
     });
-    frag.appendChild(list);
+    frag.appendChild(cards);
     return frag;
   }
 
   function renderSkins() {
     var frag = document.createDocumentFragment();
-    var current = P.getSetting('skin');
+    var current = progress.getSetting('skin');
     var grid = el('div', 'skins');
 
-    P.SKINS.forEach(function (skin) {
-      var open = P.isSkinUnlocked(skin);
+    progress.skins().forEach(function (skin) {
+      var open = progress.isSkinUnlocked(skin);
       var btn = el('button', 'skin' + (open ? '' : ' is-locked') + (skin.id === current && open ? ' is-active' : ''));
       btn.type = 'button';
       btn.disabled = !open;
 
       var swatch = el('span', 'skin-swatch');
-      if (skin.rainbow) {
-        swatch.style.background = 'linear-gradient(120deg,#ff5d8f,#ffd166,#38f9c3,#55b6ff,#a78bfa)';
-      } else {
-        swatch.style.background = 'linear-gradient(120deg,' + skin.body + ',' + skin.head + ')';
-      }
+      swatch.style.background = skin.rainbow
+        ? 'linear-gradient(120deg,#ff5d8f,#ffd166,#38f9c3,#55b6ff,#a78bfa)'
+        : 'linear-gradient(120deg,' + skin.body + ',' + skin.head + ')';
       btn.appendChild(swatch);
       btn.appendChild(el('strong', null, skin.name));
 
       var need = null;
-      if (!open) {
-        P.ACHIEVEMENTS.forEach(function (a) { if (a.id === skin.needs) { need = a; } });
-      }
+      progress.achievements().forEach(function (a) { if (a.id === skin.needs) { need = a; } });
       btn.appendChild(el('span', 'skin-note', open
         ? (skin.id === current ? 'Équipé' : 'Disponible')
         : '🔒 ' + (need ? need.desc : 'À débloquer')));
 
       btn.addEventListener('click', function () {
-        P.setSetting('skin', skin.id);
+        progress.setSetting('skin', skin.id);
         if (hooks.onSkinChange) { hooks.onSkinChange(); }
         render();
       });
@@ -204,30 +204,23 @@ window.Sheets = (function () {
   }
 
   function renderStats() {
-    var t = P.totals();
+    var t = progress.totals();
     var frag = document.createDocumentFragment();
-
-    var bests = ['easy', 'normal', 'hard'].map(function (d) { return P.bestFor(d); });
-    var overall = Math.max.apply(null, bests.concat([0]));
 
     var hero = el('div', 'hero');
     hero.appendChild(el('span', 'hero-label', 'Meilleur score'));
-    hero.appendChild(el('strong', 'hero-value', num(overall)));
-    hero.appendChild(el('span', 'hero-note', t.games ? num(t.games) + ' parties jouées' : 'Aucune partie terminée'));
+    hero.appendChild(el('strong', 'hero-value', num(progress.bestOverall())));
+    hero.appendChild(el('span', 'hero-note',
+      t.games ? num(t.games) + ' parties jouées' : 'Aucune partie terminée'));
     frag.appendChild(hero);
 
     var tiles = el('div', 'tiles');
-    [
-      ['Pommes mangées', num(t.apples)],
-      ['Bonus ramassés', num(t.powerups)],
-      ['Longueur max', num(t.bestLength)],
-      ['Meilleur combo', '×' + num(t.bestCombo)],
-      ['Temps de jeu', duration(t.timeMs)],
-      ['Points cumulés', num(t.score)]
-    ].forEach(function (pair) {
+    ((manifest.stats && manifest.stats.tiles) || []).forEach(function (def) {
+      var raw = t[def.from] || 0;
+      var value = def.format === 'duration' ? duration(raw) : (def.prefix || '') + num(raw);
       var tile = el('div', 'tile');
-      tile.appendChild(el('span', 'tile-label', pair[0]));
-      tile.appendChild(el('strong', 'tile-value', pair[1]));
+      tile.appendChild(el('span', 'tile-label', def.label));
+      tile.appendChild(el('strong', 'tile-value', value));
       tiles.appendChild(tile);
     });
     frag.appendChild(tiles);
@@ -236,55 +229,56 @@ window.Sheets = (function () {
 
     var table = el('div', 'table');
     table.appendChild(el('h3', 'chart-title', 'Par difficulté'));
-    ['easy', 'normal', 'hard', 'zen'].forEach(function (d) {
-      var per = (t.byDifficulty || {})[d] || { games: 0, best: 0 };
+    progress.difficulties().forEach(function (d) {
+      var per = (t.byDifficulty || {})[d.id] || { games: 0 };
       var row = el('div', 'row');
-      row.appendChild(el('span', null, DIFFICULTY_LABELS[d]));
+      row.appendChild(el('span', null, d.label));
       row.appendChild(el('span', 'row-games', num(per.games) + ' parties'));
-      row.appendChild(el('strong', null, d === 'zen' ? '—' : num(P.bestFor(d))));
+      row.appendChild(el('strong', null, progress.ranked(d.id) ? num(progress.bestFor(d.id)) : '—'));
       table.appendChild(row);
     });
     frag.appendChild(table);
     return frag;
   }
 
-  function segmented(label, name, options, hint) {
+  function segmented(def) {
     var field = el('div', 'field');
-    field.appendChild(el('span', 'field-label', label));
-    var choices = el('div', 'choices choices-' + options.length);
-    options.forEach(function (opt) {
-      var btn = el('button', 'choice' + (P.getSetting(name) === opt.value ? ' is-active' : ''), opt.label);
+    field.appendChild(el('span', 'field-label', def.label));
+    var choices = el('div', 'choices choices-' + def.options.length);
+    def.options.forEach(function (opt) {
+      var btn = el('button', 'choice' + (progress.getSetting(def.key) === opt.value ? ' is-active' : ''), opt.label);
       btn.type = 'button';
       btn.addEventListener('click', function () {
-        P.setSetting(name, opt.value);
-        if (hooks.onSettingChange) { hooks.onSettingChange(name, opt.value); }
+        progress.setSetting(def.key, opt.value);
+        if (hooks.onSettingChange) { hooks.onSettingChange(def.key, opt.value); }
         render();
       });
       choices.appendChild(btn);
     });
     field.appendChild(choices);
+    var hint = typeof def.hint === 'function' ? def.hint(progress.getSetting(def.key)) : def.hint;
     if (hint) { field.appendChild(el('p', 'field-hint', hint)); }
     return field;
   }
 
-  function toggle(label, name, hint) {
+  function toggle(def) {
     var row = el('div', 'switch-row');
     var text = el('div', 'switch-text');
-    text.appendChild(el('strong', null, label));
-    if (hint) { text.appendChild(el('span', null, hint)); }
+    text.appendChild(el('strong', null, def.label));
+    if (def.note) { text.appendChild(el('span', null, def.note)); }
     row.appendChild(text);
 
     var btn = el('button', 'switch');
     btn.type = 'button';
     btn.setAttribute('role', 'switch');
-    btn.setAttribute('aria-label', label);
-    btn.setAttribute('aria-checked', String(!!P.getSetting(name)));
+    btn.setAttribute('aria-label', def.label);
+    btn.setAttribute('aria-checked', String(!!progress.getSetting(def.key)));
     btn.appendChild(el('span', 'switch-knob'));
     btn.addEventListener('click', function () {
-      var value = !P.getSetting(name);
-      P.setSetting(name, value);
+      var value = !progress.getSetting(def.key);
+      progress.setSetting(def.key, value);
       btn.setAttribute('aria-checked', String(value));
-      if (hooks.onSettingChange) { hooks.onSettingChange(name, value); }
+      if (hooks.onSettingChange) { hooks.onSettingChange(def.key, value); }
     });
     row.appendChild(btn);
     return row;
@@ -292,43 +286,35 @@ window.Sheets = (function () {
 
   function renderSettings() {
     var frag = document.createDocumentFragment();
+    var own = manifest.settings || [];
 
-    frag.appendChild(segmented('Taille de la grille', 'grid', [
-      { value: 'small', label: 'Petite' },
-      { value: 'medium', label: 'Moyenne' },
-      { value: 'large', label: 'Grande' }
-    ], P.GRID_SIZES[P.getSetting('grid')] + ' × ' + P.GRID_SIZES[P.getSetting('grid')] +
-       ' cases — s\'applique à la prochaine partie.'));
+    // Réglages du jeu à choix multiples, puis thème, puis les interrupteurs :
+    // les partagés d'abord, ceux du jeu ensuite.
+    own.filter(function (d) { return d.type === 'choice'; }).forEach(function (d) {
+      frag.appendChild(segmented(d));
+    });
 
-    frag.appendChild(segmented('Vitesse', 'speed', [
-      { value: 'progressive', label: 'Progressive' },
-      { value: 'constant', label: 'Constante' }
-    ], P.getSetting('speed') === 'progressive'
-       ? 'Le serpent accélère à mesure qu\'il grandit.'
-       : 'Le rythme reste identique du début à la fin.'));
+    frag.appendChild(segmented({
+      key: 'theme',
+      label: 'Thème',
+      options: Object.keys(progress.THEMES).map(function (id) {
+        return { value: id, label: progress.THEMES[id].label };
+      })
+    }));
 
-    frag.appendChild(segmented('Thème', 'theme', [
-      { value: 'neon', label: 'Néon' },
-      { value: 'retro', label: 'Rétro' },
-      { value: 'dusk', label: 'Crépuscule' }
-    ]));
-
-    frag.appendChild(toggle('Son', 'sound', 'Bruitages générés en WebAudio'));
-    frag.appendChild(toggle('Effets visuels', 'effects', 'Particules, secousses et textes flottants'));
-    frag.appendChild(toggle('Quadrillage', 'gridLines', 'Lignes de repère sur le plateau'));
+    frag.appendChild(toggle({ key: 'sound', label: 'Son', note: 'Bruitages générés en WebAudio' }));
+    frag.appendChild(toggle({ key: 'effects', label: 'Effets visuels',
+                              note: 'Particules, secousses et textes flottants' }));
+    own.filter(function (d) { return d.type === 'toggle'; }).forEach(function (d) {
+      frag.appendChild(toggle(d));
+    });
 
     var danger = el('div', 'danger');
-    var btn = el('button', 'danger-btn', resetArmed
-      ? 'Confirmer : tout effacer'
-      : 'Réinitialiser mes données');
+    var btn = el('button', 'danger-btn', resetArmed ? 'Confirmer : tout effacer' : 'Réinitialiser mes données');
     btn.type = 'button';
     btn.addEventListener('click', function () {
-      if (!resetArmed) {
-        resetArmed = true;
-        render();
-        return;
-      }
-      P.resetAll();
+      if (!resetArmed) { resetArmed = true; render(); return; }
+      progress.reset();
       location.reload();
     });
     danger.appendChild(btn);
@@ -336,7 +322,6 @@ window.Sheets = (function () {
       ? 'Scores, succès, skins et réglages seront perdus. Clique à nouveau pour confirmer.'
       : 'Efface les records, les succès et les réglages de ce navigateur.'));
     frag.appendChild(danger);
-
     return frag;
   }
 
@@ -389,27 +374,24 @@ window.Sheets = (function () {
     while (toasts.children.length > 3) { toasts.firstChild.remove(); }
   }
 
-  function init(options) {
-    hooks = options || {};
-    sheet = document.getElementById('sheet');
-    body = document.getElementById('sheetBody');
-    tabsBox = document.getElementById('sheetTabs');
-    toasts = document.getElementById('toasts');
+  sheet = document.getElementById('sheet');
+  body = document.getElementById('sheetBody');
+  tabsBox = document.getElementById('sheetTabs');
+  toasts = document.getElementById('toasts');
 
-    TABS.forEach(function (tab) {
-      var btn = el('button', 'tab', tab.label);
-      btn.type = 'button';
-      btn.dataset.tab = tab.id;
-      btn.setAttribute('role', 'tab');
-      btn.addEventListener('click', function () { activeTab = tab.id; render(); });
-      tabsBox.appendChild(btn);
-    });
+  TABS.forEach(function (tab) {
+    var btn = el('button', 'tab', tab.label);
+    btn.type = 'button';
+    btn.dataset.tab = tab.id;
+    btn.setAttribute('role', 'tab');
+    btn.addEventListener('click', function () { activeTab = tab.id; render(); });
+    tabsBox.appendChild(btn);
+  });
 
-    document.getElementById('sheetClose').addEventListener('click', close);
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); close(); }
-    }, true);
-  }
+  document.getElementById('sheetClose').addEventListener('click', close);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); close(); }
+  }, true);
 
-  return { init: init, open: open, close: close, isOpen: isOpen, toast: toast };
-}());
+  return { open: open, close: close, isOpen: isOpen, toast: toast };
+};

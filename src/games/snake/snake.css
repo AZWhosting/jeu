@@ -1,0 +1,33 @@
+/* Neon Snake — styles propres au jeu : la légende de ses bonus. */
+
+/* ---- Légende ---- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.dot-apple { background: var(--pink); box-shadow: 0 0 8px var(--pink); }
+.dot-gold  { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+.dot-slow  { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
+.dot-ghost { background: var(--violet); box-shadow: 0 0 8px var(--violet); }
+
+@media (max-height: 720px) {
+  .legend { display: none; }
+}

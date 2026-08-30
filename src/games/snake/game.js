@@ -1,46 +1,42 @@
-/* Neon Snake — jeu d'arcade en canvas, sans dépendance.
-   Boucle à pas fixe (logique) + rendu interpolé (60 fps).
-   Les réglages, succès, skins et statistiques vivent dans progress.js. */
+/* Neon Snake — le jeu lui-même. Tout ce qui n'est pas propre au serpent
+   (persistance, panneaux, boucle, entrées, sons) vient du socle dans src/core. */
 (function () {
   'use strict';
 
-  var P = window.Progress;
-  var Sheets = window.Sheets;
+  var manifest = window.Games && window.Games.snake;
 
-  // Sans ses modules, le moteur planterait en silence sur une page à moitié
-  // chargée (cache périmé, fichier manquant) : mieux vaut le dire clairement.
-  if (!P || !Sheets) {
-    var manquants = [!P ? 'src/progress.js' : null, !Sheets ? 'src/sheets.js' : null]
-      .filter(Boolean).join(' et ');
+  // Chaque fichier attendu est associé à ce qu'il doit avoir défini : on sait
+  // ainsi nommer précisément ce qui manque.
+  var required = {
+    'src/core/storage.js': window.Core && Core.Storage,
+    'src/core/progress.js': window.Core && Core.createProgress,
+    'src/core/sheets.js': window.Core && Core.createSheets,
+    'src/core/loop.js': window.Core && Core.createLoop,
+    'src/core/input.js': window.Core && Core.attachInput,
+    'src/core/audio.js': window.Core && Core.createAudio,
+    'src/games/snake/manifest.js': manifest
+  };
+  var missing = Object.keys(required).filter(function (file) { return !required[file]; }).join(', ');
+
+  // Sur une page à moitié chargée (cache périmé, fichier manquant), mieux vaut
+  // le dire clairement que planter en silence.
+  if (missing) {
     var note = document.getElementById('subtitle');
     if (note) {
-      note.textContent = 'Chargement incomplet (' + manquants +
-        '). Recharge la page avec Ctrl+Maj+R.';
+      note.textContent = 'Chargement incomplet (' + missing + '). Recharge la page avec Ctrl+Maj+R.';
       note.style.color = '#ff5d8f';
     }
-    console.error('Neon Snake : ' + manquants + ' n\'a pas été chargé.');
+    console.error('Neon Snake : ' + missing + ' n\'a pas été chargé.');
     return;
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Configuration                                                       */
-  /* ------------------------------------------------------------------ */
+  var progress = Core.createProgress(manifest);
+  var audio = Core.createAudio(function () { return !!progress.getSetting('sound'); });
+  var sheets;
 
-  // Dimensions de la grille : relues dans les réglages à chaque partie.
-  var COLS = P.gridSize();
-  var ROWS = COLS;
-
-  var DIFFICULTIES = {
-    easy:   { label: 'Facile',    baseTick: 150, minTick: 90, wrap: true,  obstacles: 0,
-              hint: 'Les murs se traversent, vitesse douce.' },
-    normal: { label: 'Normal',    baseTick: 125, minTick: 68, wrap: false, obstacles: 0,
-              hint: 'Murs mortels, vitesse progressive.' },
-    hard:   { label: 'Difficile', baseTick: 100, minTick: 52, wrap: false, obstacles: 7,
-              hint: 'Murs mortels, obstacles et rythme soutenu.' },
-    zen:    { label: 'Zen',       baseTick: 165, minTick: 135, wrap: true, obstacles: 0,
-              immortal: true,
-              hint: 'Rien ne tue, et le combo monte à chaque pomme.' }
-  };
+  /* ------------------------------------------------------------------ */
+  /* Constantes du jeu                                                   */
+  /* ------------------------------------------------------------------ */
 
   var ITEMS = {
     apple: { points: 10, growth: 1, color: '#ff5d8f', life: 0,     label: '+10' },
@@ -50,67 +46,22 @@
   };
 
   var POWERUP_EVERY = 3;      // une bonne surprise toutes les N pommes
-  var COMBO_WINDOW = 2600;    // ms pour enchaîner, hors mode zen
+  var COMBO_WINDOW = 2600;    // ms pour enchaîner, hors difficultés à combo compté
   var COMBO_MAX = 5;
-  var SLOW_DURATION = 7000;   // ms
-  var GHOST_DURATION = 6000;  // ms
+  var SLOW_DURATION = 7000;
+  var GHOST_DURATION = 6000;
   var RESTART_GRACE = 700;    // ms avant qu'une touche puisse relancer une partie
-
-  /* ------------------------------------------------------------------ */
-  /* Utilitaires                                                         */
-  /* ------------------------------------------------------------------ */
 
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); };
   var key = function (x, y) { return x + ',' + y; };
-  var effectsOn = function () { return !!P.getSetting('effects'); };
-
-  /* ------------------------------------------------------------------ */
-  /* Sons (WebAudio, aucun fichier)                                      */
-  /* ------------------------------------------------------------------ */
-
-  var audio = {
-    ctx: null,
-
-    get enabled() { return !!P.getSetting('sound'); },
-
-    unlock: function () {
-      if (this.ctx) { if (this.ctx.state === 'suspended') { this.ctx.resume(); } return; }
-      var Ctx = window.AudioContext || window.webkitAudioContext;
-      if (Ctx) { this.ctx = new Ctx(); }
-    },
-
-    blip: function (freq, duration, type, gain) {
-      if (!this.enabled || !this.ctx) { return; }
-      var t = this.ctx.currentTime;
-      var osc = this.ctx.createOscillator();
-      var vol = this.ctx.createGain();
-      osc.type = type || 'square';
-      osc.frequency.setValueAtTime(freq, t);
-      vol.gain.setValueAtTime(gain || 0.06, t);
-      vol.gain.exponentialRampToValueAtTime(0.0001, t + duration);
-      osc.connect(vol).connect(this.ctx.destination);
-      osc.start(t);
-      osc.stop(t + duration);
-    },
-
-    eat:    function () { this.blip(520, 0.09, 'square'); },
-    combo:  function (n) { this.blip(520 + n * 110, 0.1, 'triangle', 0.07); },
-    power:  function () { this.blip(320, 0.07, 'sawtooth', 0.05); this.blip(660, 0.18, 'triangle', 0.05); },
-    die:    function () { this.blip(180, 0.35, 'sawtooth', 0.08); this.blip(90, 0.5, 'square', 0.06); },
-    unlockJingle: function () {
-      this.blip(660, 0.12, 'triangle', 0.06);
-      var self = this;
-      setTimeout(function () { self.blip(880, 0.18, 'triangle', 0.06); }, 120);
-    }
-  };
+  var effectsOn = function () { return !!progress.getSetting('effects'); };
 
   /* ------------------------------------------------------------------ */
   /* Éléments du DOM                                                     */
   /* ------------------------------------------------------------------ */
 
   var canvas = $('board');
-  var ctx = canvas.getContext('2d');
   var boardWrap = document.querySelector('.board-wrap');
   var effects = $('effects');
   var overlay = $('overlay');
@@ -118,8 +69,9 @@
     score: $('score'), best: $('best'), bestLabel: $('bestLabel'),
     combo: $('combo'), comboBox: $('comboBox'),
     subtitle: $('subtitle'), diffHint: $('diffHint'), difficultyField: $('difficultyField'),
+    difficulty: $('difficulty'),
     scoreboard: $('scoreboard'), finalScore: $('finalScore'), finalLength: $('finalLength'),
-    finalBest: $('finalBest'), playBtn: $('playBtn'), hint: $('hint'),
+    finalBest: $('finalBest'), playBtn: $('playBtn'),
     pauseBtn: $('pauseBtn'), soundBtn: $('soundBtn'), restartBtn: $('restartBtn'), statsBtn: $('statsBtn')
   };
 
@@ -128,20 +80,22 @@
   /* ------------------------------------------------------------------ */
 
   var state = 'menu';                       // menu | playing | paused | over
-  var difficulty = P.read('difficulty', 'normal');
-  if (!DIFFICULTIES[difficulty]) { difficulty = 'normal'; }
+  var difficulty = progress.difficulty();
+  var COLS, ROWS;
 
   var snake, prevSnake, dir, queue, obstacles, food, powerup;
   var score, applesEaten, pickups, combo, lastEatAt, growth;
-  var slowUntil, ghostUntil;
-  var accumulator, lastFrame, particles;
+  var slowUntil, ghostUntil, particles;
   var run, runStartedAt, runCommitted, overSince = 0;
+  var loop, ctx;
 
-  function isZen() { return !!DIFFICULTIES[difficulty].immortal; }
-  function best() { return P.bestFor(difficulty); }
+  function conf() { return progress.difficultyById(difficulty); }
+  function isZen() { return !!conf().immortal; }
+  function best() { return progress.bestFor(difficulty); }
+  function cellSize() { return loop.size() / COLS; }
 
   function resetRun() {
-    COLS = P.gridSize();
+    COLS = manifest.gridSizes[progress.getSetting('grid')] || manifest.gridSizes.medium;
     ROWS = COLS;
     var midY = Math.floor(ROWS / 2);
     snake = [{ x: 5, y: midY }, { x: 4, y: midY }, { x: 3, y: midY }];
@@ -159,12 +113,12 @@
     powerup = null;
     food = null;
     particles = [];
-    accumulator = 0;
     obstacles = makeObstacles();
     food = { type: 'apple', cell: freeCell(), bornAt: performance.now() };
-    run = P.newRun(difficulty);
+    run = progress.newRun(difficulty);
     runStartedAt = performance.now();
     runCommitted = false;
+    if (loop) { loop.resetClock(); }
     renderHud();
   }
 
@@ -175,7 +129,7 @@
   function makeObstacles() {
     var set = {};
     // Le nombre d'obstacles suit la taille de la grille.
-    var count = Math.round(DIFFICULTIES[difficulty].obstacles * (COLS / 21));
+    var count = Math.round((conf().obstacles || 0) * (COLS / 21));
     var midY = Math.floor(ROWS / 2);
     var tries = 0;
 
@@ -223,14 +177,14 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Boucle de jeu                                                       */
+  /* Logique                                                             */
   /* ------------------------------------------------------------------ */
 
   function tickDuration(now) {
-    var conf = DIFFICULTIES[difficulty];
-    var ms = conf.baseTick;
-    if (P.getSetting('speed') !== 'constant') {
-      ms -= Math.min(conf.baseTick - conf.minTick, (snake.length - 3) * 2.2);
+    var c = conf();
+    var ms = c.baseTick;
+    if (progress.getSetting('speed') !== 'constant') {
+      ms -= Math.min(c.baseTick - c.minTick, (snake.length - 3) * 2.2);
     }
     if (now < slowUntil) { ms *= 1.65; }
     return ms;
@@ -256,7 +210,7 @@
     var ny = head.y + dir.y;
     // En zen comme sous l'effet fantôme, plus rien ne tue.
     var immune = now < ghostUntil || isZen();
-    var wrap = DIFFICULTIES[difficulty].wrap || immune;
+    var wrap = conf().wrap || immune;
 
     if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) {
       if (!wrap) { return gameOver(now); }
@@ -291,10 +245,9 @@
     var def = ITEMS[item.type];
 
     pickups++;
-    if (isZen()) {
-      // Zen : le combo compte simplement les prises de la partie. ×5 à la
-      // cinquième pomme, sans aucune contrainte de temps ni de distance, et
-      // il ne redescend jamais.
+    if (conf().countedCombo) {
+      // Combo compté : il vaut le nombre de prises de la partie, ×5 à la
+      // cinquième, sans contrainte de temps ni de distance.
       combo = Math.min(COMBO_MAX, pickups);
     } else if (pickups === 1) {
       combo = 1;                                   // première prise de la partie
@@ -319,12 +272,12 @@
       run.apples++;
       food = { type: 'apple', cell: freeCell(), bornAt: now };
       if (applesEaten % POWERUP_EVERY === 0 && !powerup) { spawnPowerup(now); }
-      if (combo > 1) { audio.combo(combo); } else { audio.eat(); }
+      if (combo > 1) { audio.chain(combo); } else { audio.pickup(); }
     } else {
       run.powerups++;
       if (item.type === 'ghost') { run.ghosts++; }
       powerup = null;
-      audio.power();
+      audio.bonus();
     }
 
     checkUnlocks();
@@ -343,31 +296,31 @@
 
   function checkUnlocks() {
     run.durationMs = performance.now() - runStartedAt;
-    var fresh = P.evaluate(run);
+    var fresh = progress.evaluate(run);
     if (!fresh.length) { return; }
-    fresh.forEach(function (item) { Sheets.toast(item); });
-    audio.unlockJingle();
+    fresh.forEach(function (item) { sheets.toast(item); });
+    audio.unlocked();
   }
 
   /* Enregistre la partie en cours dans les statistiques. Idempotent. */
   function commitRun() {
-    if (!run || runCommitted || run.apples === 0 && run.score === 0 && run.maxLength <= 3) {
+    if (!run || runCommitted || (run.apples === 0 && run.score === 0 && run.maxLength <= 3)) {
       runCommitted = true;
       return null;
     }
     runCommitted = true;
     run.durationMs = performance.now() - runStartedAt;
     run.score = score;
-    var result = P.finishRun(run);
-    result.unlocked.forEach(function (item) { Sheets.toast(item); });
-    if (result.unlocked.length) { audio.unlockJingle(); }
+    var result = progress.finishRun(run);
+    result.unlocked.forEach(function (item) { sheets.toast(item); });
+    if (result.unlocked.length) { audio.unlocked(); }
     return result;
   }
 
   function gameOver(now) {
     state = 'over';
     overSince = now;
-    audio.die();
+    audio.fail();
     burst(snake[0], '#ff5d8f', 34);
     if (effectsOn()) {
       boardWrap.classList.remove('shake');
@@ -377,11 +330,10 @@
 
     var result = commitRun();
     var beaten = !!(result && result.record);
-    var record = Math.max(best(), score);
 
     ui.finalScore.textContent = score;
     ui.finalLength.textContent = snake.length;
-    ui.finalBest.textContent = record;
+    ui.finalBest.textContent = Math.max(best(), score);
     renderHud();
 
     showPanel({
@@ -390,26 +342,6 @@
       cta: 'Rejouer',
       scoreboard: true
     });
-  }
-
-  function frame(now) {
-    var dt = Math.min(64, now - lastFrame);
-    lastFrame = now;
-
-    if (state === 'playing') {
-      accumulator += dt;
-      var duration = tickDuration(now);
-      var guard = 0;
-      while (accumulator >= duration && state === 'playing' && guard++ < 4) {
-        accumulator -= duration;
-        step(now);
-        duration = tickDuration(now);
-      }
-    }
-
-    updateParticles(dt);
-    draw(now);
-    requestAnimationFrame(frame);
   }
 
   /* ------------------------------------------------------------------ */
@@ -463,19 +395,6 @@
   /* Rendu                                                               */
   /* ------------------------------------------------------------------ */
 
-  var pixelSize = 640;
-  function cellSize() { return pixelSize / COLS; }
-
-  function resize() {
-    var rect = canvas.getBoundingClientRect();
-    var dpr = Math.min(2, window.devicePixelRatio || 1);
-    var side = Math.max(1, Math.round(rect.width));
-    pixelSize = side;
-    canvas.width = Math.round(side * dpr);
-    canvas.height = Math.round(side * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-
   function roundRect(x, y, w, h, r) {
     var radius = Math.min(r, w / 2, h / 2);
     ctx.beginPath();
@@ -487,18 +406,18 @@
     ctx.closePath();
   }
 
-  function drawGrid(c) {
-    if (!P.getSetting('gridLines')) { return; }
-    ctx.strokeStyle = P.theme().grid;
+  function drawGrid(c, size) {
+    if (!progress.getSetting('gridLines')) { return; }
+    ctx.strokeStyle = progress.theme().grid;
     ctx.lineWidth = 1;
     for (var i = 1; i < COLS; i++) {
       ctx.beginPath();
       ctx.moveTo(Math.round(i * c) + 0.5, 0);
-      ctx.lineTo(Math.round(i * c) + 0.5, pixelSize);
+      ctx.lineTo(Math.round(i * c) + 0.5, size);
       ctx.stroke();
       ctx.beginPath();
       ctx.moveTo(0, Math.round(i * c) + 0.5);
-      ctx.lineTo(pixelSize, Math.round(i * c) + 0.5);
+      ctx.lineTo(size, Math.round(i * c) + 0.5);
       ctx.stroke();
     }
   }
@@ -527,14 +446,13 @@
     var pulse = 1 + Math.sin(now / 180) * 0.08;
     var cx = (item.cell.x + 0.5) * c;
     var cy = (item.cell.y + 0.5) * c;
-    var r = c * 0.3 * pulse;
 
     ctx.save();
     ctx.shadowColor = def.color;
     ctx.shadowBlur = 16;
     ctx.fillStyle = def.color;
     ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(cx, cy, c * 0.3 * pulse, 0, Math.PI * 2);
     ctx.fill();
 
     if (item.type !== 'apple') {
@@ -577,9 +495,7 @@
     if (current.length) { paths.push(current); }
 
     return paths.map(function (path) {
-      return path.map(function (p) {
-        return { x: (p.x + 0.5) * c, y: (p.y + 0.5) * c };
-      });
+      return path.map(function (p) { return { x: (p.x + 0.5) * c, y: (p.y + 0.5) * c }; });
     });
   }
 
@@ -602,10 +518,9 @@
     ctx.stroke();
   }
 
-  function drawSnake(c, now) {
-    var alpha = state === 'playing' ? clamp(accumulator / tickDuration(now), 0, 1) : 1;
+  function drawSnake(c, now, alpha) {
     var ghost = now < ghostUntil;
-    var skin = P.currentSkin();
+    var skin = progress.currentSkin();
     var body = ghost ? '#8b7cf0' : skin.body;
     var head = ghost ? '#c4b5fd' : skin.head;
     var paths = snakePath(alpha, c);
@@ -663,31 +578,33 @@
     ctx.restore();
   }
 
-  function drawTimers(c, now) {
+  function drawTimers(now, size) {
     var bars = [];
     if (now < slowUntil) { bars.push({ color: '#55b6ff', ratio: (slowUntil - now) / SLOW_DURATION }); }
     if (now < ghostUntil) { bars.push({ color: '#a78bfa', ratio: (ghostUntil - now) / GHOST_DURATION }); }
 
     bars.forEach(function (bar, i) {
       var h = 4;
-      var y = pixelSize - (i + 1) * (h + 4);
+      var y = size - (i + 1) * (h + 4);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx.fillRect(0, y, pixelSize, h);
+      ctx.fillRect(0, y, size, h);
       ctx.fillStyle = bar.color;
-      ctx.fillRect(0, y, pixelSize * clamp(bar.ratio, 0, 1), h);
+      ctx.fillRect(0, y, size * clamp(bar.ratio, 0, 1), h);
     });
   }
 
-  function draw(now) {
+  function draw(now, alpha, dt) {
+    var size = loop.size();
     var c = cellSize();
-    ctx.clearRect(0, 0, pixelSize, pixelSize);
-    drawGrid(c);
+    updateParticles(dt);
+    ctx.clearRect(0, 0, size, size);
+    drawGrid(c, size);
     drawObstacles(c);
     drawItem(food, c, now);
     drawItem(powerup, c, now);
-    drawSnake(c, now);
+    drawSnake(c, now, alpha);
     drawParticles();
-    drawTimers(c, now);
+    drawTimers(now, size);
   }
 
   /* ------------------------------------------------------------------ */
@@ -708,6 +625,8 @@
     ui.bestLabel.textContent = isZen() ? 'Longueur' : 'Record';
     ui.best.textContent = isZen() ? snake.length : Math.max(best(), score);
     ui.combo.textContent = '×' + combo;
+    // En zen le compteur reste visible dès ×1 : sa montée est le retour
+    // d'information qui rend la règle lisible.
     ui.comboBox.hidden = state !== 'playing' || (!isZen() && combo < 2);
   }
 
@@ -727,7 +646,7 @@
     commitRun();                 // une partie abandonnée compte quand même
     resetRun();
     state = 'playing';
-    lastFrame = performance.now();
+    loop.resetClock();
     hidePanel();
     renderHud();
   }
@@ -738,7 +657,7 @@
       showPanel({ title: 'Pause', subtitle: 'Reprends quand tu veux.', cta: 'Reprendre', hideDifficulty: true });
     } else if (state === 'paused') {
       state = 'playing';
-      lastFrame = performance.now();
+      loop.resetClock();
       hidePanel();
     }
   }
@@ -746,17 +665,31 @@
   /* `persist` n'est vrai que sur un choix explicite du joueur : au chargement,
      rien ne doit être réécrit, sinon une réinitialisation laisse des traces. */
   function selectDifficulty(value, persist) {
-    if (!DIFFICULTIES[value]) { return; }
+    if (!progress.difficultyById(value)) { return; }
     difficulty = value;
-    if (persist) { P.write('difficulty', value); }
-    Array.prototype.forEach.call(document.querySelectorAll('#difficulty .choice'), function (btn) {
+    if (persist) { progress.setSetting('difficulty', value); }
+    Array.prototype.forEach.call(ui.difficulty.children, function (btn) {
       var active = btn.dataset.diff === value;
       btn.classList.toggle('is-active', active);
       btn.setAttribute('aria-checked', String(active));
     });
-    ui.diffHint.textContent = DIFFICULTIES[value].hint;
+    ui.diffHint.textContent = conf().hint;
     if (state === 'menu' || state === 'over') { run.difficulty = value; }
     renderHud();
+  }
+
+  function buildDifficultyButtons() {
+    progress.difficulties().forEach(function (d) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'choice';
+      btn.dataset.diff = d.id;
+      btn.textContent = d.label;
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', 'false');
+      ui.difficulty.appendChild(btn);
+    });
+    ui.difficulty.classList.add('choices-' + progress.difficulties().length);
   }
 
   function push(dx, dy) {
@@ -766,102 +699,25 @@
     if (queue.length < 2) { queue.push({ x: dx, y: dy }); }
   }
 
-  var KEYS = {
-    ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
-    w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0],
-    z: [0, -1], q: [-1, 0]
-  };
-
-  document.addEventListener('keydown', function (e) {
-    if (Sheets.isOpen()) { return; }          // les panneaux ont la main
-    var move = KEYS[e.key] || KEYS[String(e.key).toLowerCase()];
-    if (move) {
-      e.preventDefault();
-      audio.unlock();
-      push(move[0], move[1]);
-      return;
-    }
-    if (e.key === ' ' || e.key === 'Enter') {
-      e.preventDefault();
-      if (state === 'over' && performance.now() - overSince < RESTART_GRACE) { return; }
-      if (state === 'menu' || state === 'over') { startGame(); }
-      else { togglePause(); }
-    }
-    if (e.key === 'Escape' && state === 'playing') { togglePause(); }
-  });
-
-  // Balayage tactile.
-  var touchStart = null;
-  canvas.addEventListener('pointerdown', function (e) {
-    touchStart = { x: e.clientX, y: e.clientY };
-    audio.unlock();
-  });
-  canvas.addEventListener('pointerup', function (e) {
-    if (!touchStart) { return; }
-    var dx = e.clientX - touchStart.x;
-    var dy = e.clientY - touchStart.y;
-    touchStart = null;
-    if (Math.abs(dx) < 22 && Math.abs(dy) < 22) { return; }
-    if (Math.abs(dx) > Math.abs(dy)) { push(dx > 0 ? 1 : -1, 0); }
-    else { push(0, dy > 0 ? 1 : -1); }
-  });
-
-  var DIR_BY_NAME = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-  $('dpad').addEventListener('click', function (e) {
-    var btn = e.target.closest('.pad');
-    if (!btn) { return; }
-    audio.unlock();
-    var move = DIR_BY_NAME[btn.dataset.dir];
-    push(move[0], move[1]);
-  });
-
-  $('difficulty').addEventListener('click', function (e) {
-    var btn = e.target.closest('.choice');
-    if (btn) { selectDifficulty(btn.dataset.diff, true); }
-  });
-
-  document.querySelector('.menu-links').addEventListener('click', function (e) {
-    var btn = e.target.closest('.link');
-    if (btn) { Sheets.open(btn.dataset.sheet); }
-  });
-
-  ui.playBtn.addEventListener('click', function () {
-    if (state === 'paused') { togglePause(); } else { startGame(); }
-  });
-
-  ui.pauseBtn.addEventListener('click', function () {
-    if (state === 'playing' || state === 'paused') { togglePause(); }
-  });
-
-  ui.restartBtn.addEventListener('click', startGame);
-  ui.statsBtn.addEventListener('click', function () { Sheets.open('stats'); });
-
-  ui.soundBtn.addEventListener('click', function () {
-    var value = !P.getSetting('sound');
-    P.setSetting('sound', value);
-    syncSoundButton();
-    if (value) { audio.unlock(); audio.eat(); }
-  });
+  function action() {
+    if (state === 'over' && performance.now() - overSince < RESTART_GRACE) { return; }
+    if (state === 'menu' || state === 'over') { startGame(); }
+    else { togglePause(); }
+  }
 
   function syncSoundButton() {
-    ui.soundBtn.setAttribute('aria-pressed', String(!!P.getSetting('sound')));
+    ui.soundBtn.setAttribute('aria-pressed', String(!!progress.getSetting('sound')));
   }
-
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden && state === 'playing') { togglePause(); }
-  });
-
-  window.addEventListener('resize', resize);
-
-  /* ------------------------------------------------------------------ */
-  /* Réglages appliqués en direct                                        */
-  /* ------------------------------------------------------------------ */
 
   function applyTheme() {
-    document.documentElement.dataset.theme = P.getSetting('theme');
+    document.documentElement.dataset.theme = progress.getSetting('theme');
   }
 
-  Sheets.init({
+  /* ------------------------------------------------------------------ */
+  /* Câblage                                                             */
+  /* ------------------------------------------------------------------ */
+
+  sheets = Core.createSheets(progress, {
     onOpen: function () { if (state === 'playing') { togglePause(); } },
     onSkinChange: function () { /* le rendu suivant lit déjà le nouveau skin */ },
     onSettingChange: function (name) {
@@ -876,6 +732,57 @@
     }
   });
 
+  loop = Core.createLoop({
+    canvas: canvas,
+    running: function () { return state === 'playing'; },
+    duration: tickDuration,
+    tick: step,
+    render: draw
+  });
+  ctx = loop.ctx;
+
+  Core.attachInput({
+    canvas: canvas,
+    dpad: $('dpad'),
+    blocked: function () { return sheets.isOpen(); },
+    onInteract: function () { audio.unlock(); },
+    onDirection: push,
+    onAction: action,
+    onEscape: function () { if (state === 'playing') { togglePause(); } }
+  });
+
+  ui.difficulty.addEventListener('click', function (e) {
+    var btn = e.target.closest('.choice');
+    if (btn) { selectDifficulty(btn.dataset.diff, true); }
+  });
+
+  document.querySelector('.menu-links').addEventListener('click', function (e) {
+    var btn = e.target.closest('.link');
+    if (btn) { sheets.open(btn.dataset.sheet); }
+  });
+
+  ui.playBtn.addEventListener('click', function () {
+    if (state === 'paused') { togglePause(); } else { startGame(); }
+  });
+
+  ui.pauseBtn.addEventListener('click', function () {
+    if (state === 'playing' || state === 'paused') { togglePause(); }
+  });
+
+  ui.restartBtn.addEventListener('click', startGame);
+  ui.statsBtn.addEventListener('click', function () { sheets.open('stats'); });
+
+  ui.soundBtn.addEventListener('click', function () {
+    var value = !progress.getSetting('sound');
+    progress.setSetting('sound', value);
+    syncSoundButton();
+    if (value) { audio.unlock(); audio.pickup(); }
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && state === 'playing') { togglePause(); }
+  });
+
   /* ------------------------------------------------------------------ */
   /* Démarrage                                                           */
   /* ------------------------------------------------------------------ */
@@ -887,7 +794,7 @@
         state: state,
         difficulty: difficulty,
         cols: COLS,
-        skin: P.currentSkin().id,
+        skin: progress.currentSkin().id,
         score: score,
         combo: combo,
         length: snake.length,
@@ -896,18 +803,21 @@
         food: food ? { x: food.cell.x, y: food.cell.y } : null,
         powerup: powerup ? { type: powerup.type, x: powerup.cell.x, y: powerup.cell.y } : null,
         obstacles: Object.keys(obstacles),
-        totals: P.totals(),
-        unlocked: Object.keys(P.unlocked())
+        totals: progress.totals(),
+        unlocked: Object.keys(progress.unlocked())
       };
     }
   };
+  window.Progress = progress;    // pratique pour les tests et la console
+  window.Sheets = sheets;
 
+  document.title = manifest.name + ' — jeu d\'arcade';
   applyTheme();
-  resize();
+  loop.resize();
+  buildDifficultyButtons();
   resetRun();
   selectDifficulty(difficulty);
   syncSoundButton();
   state = 'menu';
-  lastFrame = performance.now();
-  requestAnimationFrame(frame);
-})();
+  loop.start();
+}());
