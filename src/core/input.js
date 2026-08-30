@@ -20,7 +20,12 @@ Core.attachInput = function (options) {
   var onEscape = options.onEscape || function () {};
   var onInteract = options.onInteract || function () {};
   var onPointer = options.onPointer || null;
+  var onTap = options.onTap || null;             // clic ou tape brève sur le plateau
+  var onSecondary = options.onSecondary || null; // clic droit ou appui long
+  var extraKeys = options.keys || {};            // touches propres au jeu
   var swipeEnabled = options.swipe !== false;
+  var LONG_PRESS_MS = 420;
+  var TAP_SLOP = 10;                             // px : au-delà, ce n'est plus une tape
 
   // Touches et pavé maintenus : le jeu lit cet axe à chaque tick.
   var held = {};
@@ -53,7 +58,9 @@ Core.attachInput = function (options) {
       onInteract();
       onAction();
     }
-    if (e.key === 'Escape') { onEscape(); }
+    if (e.key === 'Escape') { onEscape(); return; }
+    var extra = extraKeys[String(e.key).toLowerCase()];
+    if (extra) { e.preventDefault(); onInteract(); extra(); }
   });
 
   document.addEventListener('keyup', function (e) {
@@ -76,11 +83,36 @@ Core.attachInput = function (options) {
       };
     }
 
+    var longPressTimer = null;
+    var longPressed = false;
+
+    function cancelLongPress() {
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    }
+
     canvas.addEventListener('pointerdown', function (e) {
       touchStart = { x: e.clientX, y: e.clientY };
+      longPressed = false;
       onInteract();
       if (onPointer && !blocked()) { onPointer(ratio(e), true); }
+      if (onSecondary) {
+        // Appui long : l'équivalent tactile du clic droit.
+        var pos = ratio(e);
+        cancelLongPress();
+        longPressTimer = setTimeout(function () {
+          longPressTimer = null;
+          longPressed = true;
+          if (!blocked()) { onSecondary(pos); }
+        }, LONG_PRESS_MS);
+      }
     });
+
+    if (onSecondary) {
+      canvas.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+        if (!blocked()) { onSecondary(ratio(e)); }
+      });
+    }
 
     if (onPointer) {
       canvas.addEventListener('pointermove', function (e) {
@@ -91,11 +123,27 @@ Core.attachInput = function (options) {
       });
     }
 
+    ['pointermove', 'pointercancel', 'pointerleave'].forEach(function (type) {
+      canvas.addEventListener(type, function (e) {
+        if (!touchStart || !longPressTimer) { return; }
+        if (type !== 'pointermove' ||
+            Math.abs(e.clientX - touchStart.x) > TAP_SLOP ||
+            Math.abs(e.clientY - touchStart.y) > TAP_SLOP) { cancelLongPress(); }
+      });
+    });
+
     canvas.addEventListener('pointerup', function (e) {
       if (!touchStart) { return; }
       var dx = e.clientX - touchStart.x;
       var dy = e.clientY - touchStart.y;
       touchStart = null;
+      cancelLongPress();
+
+      if (onTap && !longPressed && Math.abs(dx) < TAP_SLOP && Math.abs(dy) < TAP_SLOP) {
+        if (!blocked()) { onTap(ratio(e)); }
+      }
+      longPressed = false;
+
       if (!swipeEnabled) { return; }
       if (Math.abs(dx) < SWIPE_MIN && Math.abs(dy) < SWIPE_MIN) { return; }
       if (Math.abs(dx) > Math.abs(dy)) { onDirection(dx > 0 ? 1 : -1, 0); }

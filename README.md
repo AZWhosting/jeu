@@ -3,13 +3,14 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-3-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-4-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
 | 🐍 **Neon Snake** | Mange, grandis, évite ta propre queue. Bonus, combos, quatre difficultés. |
 | 🧱 **Neon Bricks** | Casse toutes les briques sans laisser tomber la balle. Bonus, niveaux enchaînés. |
 | 🔢 **Neon 2048** | Glisse, fusionne, vise la plus grande tuile. Quatre tailles de grille. |
+| 💣 **Neon Mines** | Démineur : déduis où sont les mines, marque-les, déblaie le reste. |
 
 Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
 jouées, temps de jeu, points cumulés et succès tous jeux confondus. Chaque jeu
@@ -30,6 +31,7 @@ Les deux jeux partagent les mêmes commandes.
 | Action | Clavier | Tactile |
 |---|---|---|
 | Se déplacer / glisser | Flèches, `WASD` ou `ZQSD` | Balayage sur le plateau, ou croix directionnelle |
+| Action secondaire (drapeau) | `F` | Clic droit, ou appui long sur la case |
 | Pause | `Espace` / `Échap` | Bouton ❚❚ |
 | Démarrer / rejouer | `Espace` ou `Entrée` | Bouton *Jouer* |
 | Couper le son | — | Bouton ♪ |
@@ -112,6 +114,29 @@ s'arrêter là : *Continuer* reprend la partie pour viser plus haut.
 Réglages propres au jeu : objectif (1024, 2048 ou 4096) et apparition des nouvelles
 tuiles (une sur dix en 4, ou toutes en 2).
 
+## 💣 Neon Mines
+
+Le démineur classique. Un clic découvre une case, le clic droit — ou un appui long sur
+mobile, ou la touche `F` — y plante un drapeau. Un chiffre indique combien de mines
+touchent la case ; recliquer sur un chiffre déjà découvert déblaie ses voisines dès que
+les drapeaux autour correspondent.
+
+**Le premier clic est toujours sûr** : les mines ne sont posées qu'après, et jamais sous
+la case jouée ni ses voisines. Aucune partie ne peut donc mourir au premier coup.
+
+| Mode | Grille | Mines |
+|---|---|---|
+| Facile | 9 × 9 | 10 |
+| Normal | 12 × 12 | 22 |
+| Difficile | 16 × 16 | 45 |
+| **Zen** | 12 × 12 | 20 — une mine touchée est désamorcée, on ne perd jamais |
+
+Le score compte 10 points par case révélée, plus une prime de victoire qui décroît avec
+le temps : les records récompensent donc les grilles déminées vite.
+
+Réglages propres au jeu : premier clic sûr, marquage automatique des dernières cases,
+chiffres colorés ou sobres.
+
 ## Succès, skins et statistiques
 
 Chaque jeu a ses **succès** — douze chacun — et plusieurs
@@ -159,6 +184,7 @@ src/games/
   snake/manifest.js · game.js · legacy.js
   bricks/manifest.js · game.js · bricks.css
   2048/manifest.js · game.js · 2048.css
+  mines/manifest.js · game.js · mines.css
 src/hub/hub.js · hub.css      # le hall
 ```
 
@@ -196,25 +222,28 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  trois jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
-  52 ms), le casse-briques simule sa balle à 120 pas par seconde, et 2048 ne demande
-  aucun tick — sa boucle ne sert qu'aux animations de glissement.
-- **Entrées à deux régimes** (`core/input.js`) : les jeux au tour par tour lisent des
-  coups discrets (une direction, une action), le casse-briques lit un axe maintenu et
-  la position du pointeur. Même module, deux usages.
+  quatre jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  52 ms), le casse-briques simule sa balle à 120 pas par seconde, 2048 ne demande aucun
+  tick — sa boucle ne sert qu'aux animations —, et le démineur s'en sert seulement pour
+  son chronomètre.
+- **Entrées à plusieurs régimes** (`core/input.js`) : coups discrets (une direction, une
+  action) pour les jeux au tour par tour ; axe maintenu et position du pointeur pour la
+  raquette du casse-briques ; tape sur une case, action secondaire (clic droit ou appui
+  long) et touches propres au jeu pour le démineur. Un seul module, quatre usages.
 - **File d'entrées** (Snake) : jusqu'à deux directions sont mises en attente, pour que
   les virages serrés ne soient jamais avalés ; les demi-tours sont filtrés.
 - **Sons générés à la volée** en WebAudio (oscillateurs) — aucun fichier audio.
 - **Canvas adapté au `devicePixelRatio`**, redimensionné avec la fenêtre.
 - **Garde-fou de chargement** : chaque jeu vérifie que les fichiers du socle ont bien
   défini ce qu'ils devaient, et affiche lequel manque plutôt que d'échouer en silence.
-- `window.__neonSnake`, `window.__neonBricks` et `window.__neon2048` exposent un
+- `window.__neonSnake`, `window.__neonBricks`, `window.__neon2048` et
+  `window.__neonMines` exposent un
   instantané en lecture seule de la partie, et de quoi placer une situation précise :
   c'est le point d'entrée des tests automatisés dans un navigateur.
 
 ## Idées d'évolution
 
-- Un quatrième jeu : Démineur ou Puissance 4 éprouveraient le socle sans canvas animé.
+- Un cinquième jeu : Puissance 4 ou Memory, avec une IA pour le premier.
 - Défi quotidien : une graine déterministe pour que tout le monde joue la même partie
   le même jour.
 - Application installable et hors ligne (manifeste + service worker).

@@ -16,6 +16,12 @@ window.GameRegistry = [
     styles: ['src/games/bricks/bricks.css']
   },
   {
+    id: 'mines',
+    meta: ['src/games/mines/manifest.js'],
+    scripts: ['src/games/mines/game.js'],
+    styles: ['src/games/mines/mines.css']
+  },
+  {
     id: '2048',
     meta: ['src/games/2048/manifest.js'],
     scripts: ['src/games/2048/game.js'],
