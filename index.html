@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="neon">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Neon Snake — jeu d'arcade</title>
-<meta name="description" content="Un Snake arcade moderne : power-ups, combos et scores locaux. Jouable au clavier et au tactile.">
+<meta name="description" content="Un Snake arcade moderne : power-ups, combos, succès, skins et statistiques. Jouable au clavier et au tactile.">
 <meta name="theme-color" content="#0b0f1a">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230b0f1a'/><rect x='6' y='14' width='14' height='5' rx='2.5' fill='%2338f9c3'/><circle cx='24' cy='16' r='3.5' fill='%23ff5d8f'/></svg>">
 <link rel="stylesheet" href="src/style.css">
@@ -19,10 +19,10 @@
     </div>
     <div class="stat stat-combo" id="comboBox" hidden>
       <span class="stat-label">Combo</span>
-      <strong id="combo" class="stat-value">x1</strong>
+      <strong id="combo" class="stat-value">×1</strong>
     </div>
     <div class="stat stat-right">
-      <span class="stat-label">Record</span>
+      <span class="stat-label" id="bestLabel">Record</span>
       <strong id="best" class="stat-value">0</strong>
     </div>
   </header>
@@ -31,6 +31,7 @@
     <canvas id="board" width="640" height="640" aria-label="Plateau de jeu"></canvas>
 
     <div class="effects" id="effects" aria-live="polite"></div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
 
     <div class="overlay" id="overlay">
       <div class="panel" id="panel">
@@ -39,10 +40,11 @@
 
         <div class="field" id="difficultyField">
           <span class="field-label">Difficulté</span>
-          <div class="choices" id="difficulty" role="radiogroup" aria-label="Difficulté">
+          <div class="choices choices-4" id="difficulty" role="radiogroup" aria-label="Difficulté">
             <button type="button" class="choice" data-diff="easy" role="radio" aria-checked="false">Facile</button>
             <button type="button" class="choice is-active" data-diff="normal" role="radio" aria-checked="true">Normal</button>
             <button type="button" class="choice" data-diff="hard" role="radio" aria-checked="false">Difficile</button>
+            <button type="button" class="choice" data-diff="zen" role="radio" aria-checked="false">Zen</button>
           </div>
           <p class="field-hint" id="diffHint">Murs mortels, vitesse progressive.</p>
         </div>
@@ -54,15 +56,32 @@
         </div>
 
         <button type="button" class="cta" id="playBtn">Jouer</button>
+
+        <div class="menu-links">
+          <button type="button" class="link" data-sheet="achievements">Succès</button>
+          <button type="button" class="link" data-sheet="skins">Skins</button>
+          <button type="button" class="link" data-sheet="stats">Stats</button>
+          <button type="button" class="link" data-sheet="settings">Réglages</button>
+        </div>
+
         <p class="hint" id="hint">Flèches / WASD / ZQSD — <kbd>Espace</kbd> pour mettre en pause</p>
       </div>
     </div>
+
+    <section class="sheet" id="sheet" hidden aria-label="Progression et réglages">
+      <header class="sheet-head">
+        <div class="tabs" id="sheetTabs" role="tablist"></div>
+        <button type="button" class="sheet-close" id="sheetClose" aria-label="Fermer">✕</button>
+      </header>
+      <div class="sheet-body" id="sheetBody"></div>
+    </section>
   </main>
 
   <div class="toolbar">
     <button type="button" class="tool" id="pauseBtn" aria-label="Pause">❚❚</button>
     <button type="button" class="tool" id="soundBtn" aria-pressed="true" aria-label="Son">♪</button>
     <button type="button" class="tool" id="restartBtn" aria-label="Recommencer">↺</button>
+    <button type="button" class="tool" id="statsBtn" aria-label="Progression et réglages">☰</button>
   </div>
 
   <div class="dpad" id="dpad" aria-hidden="true">
@@ -80,6 +99,8 @@
   </footer>
 
 </div>
+<script src="src/progress.js"></script>
+<script src="src/sheets.js"></script>
 <script src="src/game.js"></script>
 </body>
 </html>

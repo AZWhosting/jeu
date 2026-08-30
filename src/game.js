@@ -1,14 +1,19 @@
 /* Neon Snake — jeu d'arcade en canvas, sans dépendance.
-   Boucle à pas fixe (logique) + rendu interpolé (60 fps). */
+   Boucle à pas fixe (logique) + rendu interpolé (60 fps).
+   Les réglages, succès, skins et statistiques vivent dans progress.js. */
 (function () {
   'use strict';
+
+  var P = window.Progress;
+  var Sheets = window.Sheets;
 
   /* ------------------------------------------------------------------ */
   /* Configuration                                                       */
   /* ------------------------------------------------------------------ */
 
-  var COLS = 21;
-  var ROWS = 21;
+  // Dimensions de la grille : relues dans les réglages à chaque partie.
+  var COLS = P.gridSize();
+  var ROWS = COLS;
 
   var DIFFICULTIES = {
     easy:   { label: 'Facile',    baseTick: 150, minTick: 90, wrap: true,  obstacles: 0,
@@ -16,7 +21,10 @@
     normal: { label: 'Normal',    baseTick: 125, minTick: 68, wrap: false, obstacles: 0,
               hint: 'Murs mortels, vitesse progressive.' },
     hard:   { label: 'Difficile', baseTick: 100, minTick: 52, wrap: false, obstacles: 7,
-              hint: 'Murs mortels, obstacles et rythme soutenu.' }
+              hint: 'Murs mortels, obstacles et rythme soutenu.' },
+    zen:    { label: 'Zen',       baseTick: 165, minTick: 135, wrap: true, obstacles: 0,
+              immortal: true,
+              hint: 'Aucune mort possible : on traverse tout, on se détend.' }
   };
 
   var ITEMS = {
@@ -31,7 +39,7 @@
   var COMBO_MAX = 5;
   var SLOW_DURATION = 7000;   // ms
   var GHOST_DURATION = 6000;  // ms
-  var STORAGE_PREFIX = 'neon-snake:';
+  var RESTART_GRACE = 700;    // ms avant qu'une touche puisse relancer une partie
 
   /* ------------------------------------------------------------------ */
   /* Utilitaires                                                         */
@@ -40,17 +48,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); };
   var key = function (x, y) { return x + ',' + y; };
-
-  function store(name, fallback) {
-    try {
-      var raw = localStorage.getItem(STORAGE_PREFIX + name);
-      return raw === null ? fallback : JSON.parse(raw);
-    } catch (e) { return fallback; }
-  }
-
-  function save(name, value) {
-    try { localStorage.setItem(STORAGE_PREFIX + name, JSON.stringify(value)); } catch (e) { /* privé */ }
-  }
+  var effectsOn = function () { return !!P.getSetting('effects'); };
 
   /* ------------------------------------------------------------------ */
   /* Sons (WebAudio, aucun fichier)                                      */
@@ -58,7 +56,8 @@
 
   var audio = {
     ctx: null,
-    enabled: store('sound', true),
+
+    get enabled() { return !!P.getSetting('sound'); },
 
     unlock: function () {
       if (this.ctx) { if (this.ctx.state === 'suspended') { this.ctx.resume(); } return; }
@@ -80,10 +79,15 @@
       osc.stop(t + duration);
     },
 
-    eat:   function () { this.blip(520, 0.09, 'square'); },
-    combo: function (n) { this.blip(520 + n * 110, 0.1, 'triangle', 0.07); },
-    power: function () { this.blip(320, 0.07, 'sawtooth', 0.05); this.blip(660, 0.18, 'triangle', 0.05); },
-    die:   function () { this.blip(180, 0.35, 'sawtooth', 0.08); this.blip(90, 0.5, 'square', 0.06); }
+    eat:    function () { this.blip(520, 0.09, 'square'); },
+    combo:  function (n) { this.blip(520 + n * 110, 0.1, 'triangle', 0.07); },
+    power:  function () { this.blip(320, 0.07, 'sawtooth', 0.05); this.blip(660, 0.18, 'triangle', 0.05); },
+    die:    function () { this.blip(180, 0.35, 'sawtooth', 0.08); this.blip(90, 0.5, 'square', 0.06); },
+    unlockJingle: function () {
+      this.blip(660, 0.12, 'triangle', 0.06);
+      var self = this;
+      setTimeout(function () { self.blip(880, 0.18, 'triangle', 0.06); }, 120);
+    }
   };
 
   /* ------------------------------------------------------------------ */
@@ -96,11 +100,12 @@
   var effects = $('effects');
   var overlay = $('overlay');
   var ui = {
-    score: $('score'), best: $('best'), combo: $('combo'), comboBox: $('comboBox'),
+    score: $('score'), best: $('best'), bestLabel: $('bestLabel'),
+    combo: $('combo'), comboBox: $('comboBox'),
     subtitle: $('subtitle'), diffHint: $('diffHint'), difficultyField: $('difficultyField'),
     scoreboard: $('scoreboard'), finalScore: $('finalScore'), finalLength: $('finalLength'),
     finalBest: $('finalBest'), playBtn: $('playBtn'), hint: $('hint'),
-    pauseBtn: $('pauseBtn'), soundBtn: $('soundBtn'), restartBtn: $('restartBtn')
+    pauseBtn: $('pauseBtn'), soundBtn: $('soundBtn'), restartBtn: $('restartBtn'), statsBtn: $('statsBtn')
   };
 
   /* ------------------------------------------------------------------ */
@@ -108,20 +113,21 @@
   /* ------------------------------------------------------------------ */
 
   var state = 'menu';                       // menu | playing | paused | over
-  var difficulty = store('difficulty', 'normal');
+  var difficulty = P.read('difficulty', 'normal');
   if (!DIFFICULTIES[difficulty]) { difficulty = 'normal'; }
 
   var snake, prevSnake, dir, queue, obstacles, food, powerup;
   var score, applesEaten, combo, lastEatAt, growth;
   var slowUntil, ghostUntil;
   var accumulator, lastFrame, particles;
-  var overSince = 0;
-  var RESTART_GRACE = 700;   // ms avant qu'une touche puisse relancer une partie
+  var run, runStartedAt, runCommitted, overSince = 0;
 
-  function bestKey() { return 'best:' + difficulty; }
-  function best() { return store(bestKey(), 0) || 0; }
+  function isZen() { return !!DIFFICULTIES[difficulty].immortal; }
+  function best() { return P.bestFor(difficulty); }
 
   function resetRun() {
+    COLS = P.gridSize();
+    ROWS = COLS;
     var midY = Math.floor(ROWS / 2);
     snake = [{ x: 5, y: midY }, { x: 4, y: midY }, { x: 3, y: midY }];
     prevSnake = snake.map(function (s) { return { x: s.x, y: s.y }; });
@@ -140,6 +146,9 @@
     accumulator = 0;
     obstacles = makeObstacles();
     food = { type: 'apple', cell: freeCell(), bornAt: performance.now() };
+    run = P.newRun(difficulty);
+    runStartedAt = performance.now();
+    runCommitted = false;
     renderHud();
   }
 
@@ -149,7 +158,8 @@
 
   function makeObstacles() {
     var set = {};
-    var count = DIFFICULTIES[difficulty].obstacles;
+    // Le nombre d'obstacles suit la taille de la grille.
+    var count = Math.round(DIFFICULTIES[difficulty].obstacles * (COLS / 21));
     var midY = Math.floor(ROWS / 2);
     var tries = 0;
 
@@ -202,8 +212,10 @@
 
   function tickDuration(now) {
     var conf = DIFFICULTIES[difficulty];
-    var speedUp = Math.min(conf.baseTick - conf.minTick, (snake.length - 3) * 2.2);
-    var ms = conf.baseTick - speedUp;
+    var ms = conf.baseTick;
+    if (P.getSetting('speed') !== 'constant') {
+      ms -= Math.min(conf.baseTick - conf.minTick, (snake.length - 3) * 2.2);
+    }
     if (now < slowUntil) { ms *= 1.65; }
     return ms;
   }
@@ -226,8 +238,9 @@
     var head = snake[0];
     var nx = head.x + dir.x;
     var ny = head.y + dir.y;
-    var ghost = now < ghostUntil;
-    var wrap = DIFFICULTIES[difficulty].wrap || ghost;
+    // En zen comme sous l'effet fantôme, plus rien ne tue.
+    var immune = now < ghostUntil || isZen();
+    var wrap = DIFFICULTIES[difficulty].wrap || immune;
 
     if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) {
       if (!wrap) { return gameOver(now); }
@@ -235,16 +248,22 @@
       ny = (ny + ROWS) % ROWS;
     }
 
-    if (obstacles[key(nx, ny)] && !ghost) { return gameOver(now); }
+    if (obstacles[key(nx, ny)] && !immune) { return gameOver(now); }
 
     // La queue libère sa case au même tick, sauf si le serpent grandit.
     var ignoreTail = growth === 0 ? 1 : 0;
     for (var i = 0; i < snake.length - ignoreTail; i++) {
-      if (snake[i].x === nx && snake[i].y === ny && !ghost) { return gameOver(now); }
+      if (snake[i].x === nx && snake[i].y === ny && !immune) { return gameOver(now); }
     }
 
     snake.unshift({ x: nx, y: ny });
     if (growth > 0) { growth--; } else { snake.pop(); }
+
+    if (snake.length > run.maxLength) {
+      run.maxLength = snake.length;
+      checkUnlocks();
+      if (isZen()) { renderHud(); }
+    }
 
     if (food && food.cell.x === nx && food.cell.y === ny) { consume(food, now); }
     else if (powerup && powerup.cell.x === nx && powerup.cell.y === ny) { consume(powerup, now); }
@@ -258,9 +277,10 @@
     combo = (now - lastEatAt < COMBO_WINDOW) ? Math.min(COMBO_MAX, combo + 1) : 1;
     lastEatAt = now;
 
-    var gained = def.points * combo;
-    score += gained;
+    score += def.points * combo;
     growth += def.growth;
+    run.score = score;
+    run.maxCombo = Math.max(run.maxCombo, combo);
 
     burst(item.cell, def.color, item.type === 'apple' ? 12 : 22);
     floatText(item.cell, def.label + (combo > 1 ? ' ×' + combo : ''), def.color);
@@ -270,14 +290,18 @@
 
     if (item === food) {
       applesEaten++;
+      run.apples++;
       food = { type: 'apple', cell: freeCell(), bornAt: now };
       if (applesEaten % POWERUP_EVERY === 0 && !powerup) { spawnPowerup(now); }
       if (combo > 1) { audio.combo(combo); } else { audio.eat(); }
     } else {
+      run.powerups++;
+      if (item.type === 'ghost') { run.ghosts++; }
       powerup = null;
       audio.power();
     }
 
+    checkUnlocks();
     renderHud();
   }
 
@@ -287,19 +311,47 @@
     powerup = { type: type, cell: freeCell(), bornAt: now };
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Fin de partie, succès                                               */
+  /* ------------------------------------------------------------------ */
+
+  function checkUnlocks() {
+    run.durationMs = performance.now() - runStartedAt;
+    var fresh = P.evaluate(run);
+    if (!fresh.length) { return; }
+    fresh.forEach(function (item) { Sheets.toast(item); });
+    audio.unlockJingle();
+  }
+
+  /* Enregistre la partie en cours dans les statistiques. Idempotent. */
+  function commitRun() {
+    if (!run || runCommitted || run.apples === 0 && run.score === 0 && run.maxLength <= 3) {
+      runCommitted = true;
+      return null;
+    }
+    runCommitted = true;
+    run.durationMs = performance.now() - runStartedAt;
+    run.score = score;
+    var result = P.finishRun(run);
+    result.unlocked.forEach(function (item) { Sheets.toast(item); });
+    if (result.unlocked.length) { audio.unlockJingle(); }
+    return result;
+  }
+
   function gameOver(now) {
     state = 'over';
     overSince = now;
     audio.die();
     burst(snake[0], '#ff5d8f', 34);
-    boardWrap.classList.remove('shake');
-    void boardWrap.offsetWidth;                    // relance l'animation
-    boardWrap.classList.add('shake');
+    if (effectsOn()) {
+      boardWrap.classList.remove('shake');
+      void boardWrap.offsetWidth;                  // relance l'animation
+      boardWrap.classList.add('shake');
+    }
 
-    var previous = best();
-    var beaten = score > previous;
-    var record = beaten ? score : previous;
-    if (beaten) { save(bestKey(), score); }
+    var result = commitRun();
+    var beaten = !!(result && result.record);
+    var record = Math.max(best(), score);
 
     ui.finalScore.textContent = score;
     ui.finalLength.textContent = snake.length;
@@ -307,7 +359,7 @@
     renderHud();
 
     showPanel({
-      title: beaten ? 'Nouveau record\u00a0!' : 'Perdu',
+      title: beaten ? 'Nouveau record !' : 'Perdu',
       subtitle: beaten ? 'Tu viens de battre ton meilleur score.' : 'Encore un essai ?',
       cta: 'Rejouer',
       scoreboard: true
@@ -339,6 +391,7 @@
   /* ------------------------------------------------------------------ */
 
   function burst(cell, color, count) {
+    if (!effectsOn()) { return; }
     var c = cellSize();
     for (var i = 0; i < count; i++) {
       var angle = Math.random() * Math.PI * 2;
@@ -369,6 +422,7 @@
   }
 
   function floatText(cell, text, color) {
+    if (!effectsOn()) { return; }
     var el = document.createElement('div');
     el.className = 'float';
     el.textContent = text;
@@ -408,7 +462,8 @@
   }
 
   function drawGrid(c) {
-    ctx.strokeStyle = 'rgba(120, 160, 220, 0.06)';
+    if (!P.getSetting('gridLines')) { return; }
+    ctx.strokeStyle = P.theme().grid;
     ctx.lineWidth = 1;
     for (var i = 1; i < COLS; i++) {
       ctx.beginPath();
@@ -524,15 +579,28 @@
   function drawSnake(c, now) {
     var alpha = state === 'playing' ? clamp(accumulator / tickDuration(now), 0, 1) : 1;
     var ghost = now < ghostUntil;
-    var body = ghost ? '#8b7cf0' : '#2fd6ab';
-    var head = ghost ? '#c4b5fd' : '#5cffd6';
+    var skin = P.currentSkin();
+    var body = ghost ? '#8b7cf0' : skin.body;
+    var head = ghost ? '#c4b5fd' : skin.head;
     var paths = snakePath(alpha, c);
 
     ctx.save();
     if (ghost) { ctx.globalAlpha = 0.75; }
 
-    paths.forEach(function (path) { strokePath(path, c * 0.82, body, 18); });
-    paths.forEach(function (path) { strokePath(path, c * 0.34, 'rgba(220, 255, 245, 0.22)', 0); });
+    if (skin.rainbow && !ghost) {
+      // Chaque tronçon prend sa propre teinte, qui défile lentement.
+      paths.forEach(function (path) {
+        if (path.length === 1) { strokePath(path, c * 0.82, 'hsl(' + (now / 12 % 360) + ', 90%, 62%)', 14); }
+        for (var i = 1; i < path.length; i++) {
+          var hue = (now / 12 + i * 28) % 360;
+          strokePath([path[i - 1], path[i]], c * 0.82, 'hsl(' + hue + ', 90%, 62%)', 12);
+        }
+      });
+      head = 'hsl(' + (now / 12 % 360) + ', 95%, 80%)';
+    } else {
+      paths.forEach(function (path) { strokePath(path, c * 0.82, body, 18); });
+      paths.forEach(function (path) { strokePath(path, c * 0.34, 'rgba(240, 255, 250, 0.20)', 0); });
+    }
 
     // Tête : disque plus clair, légèrement plus large que le corps.
     var h = paths[0][0];
@@ -601,6 +669,7 @@
   /* ------------------------------------------------------------------ */
 
   function bump(el) {
+    if (!effectsOn()) { return; }
     el.classList.remove('bump');
     void el.offsetWidth;
     el.classList.add('bump');
@@ -609,15 +678,16 @@
   function renderHud() {
     if (ui.score.textContent !== String(score)) { bump(ui.score); }
     ui.score.textContent = score;
-    ui.best.textContent = Math.max(best(), score);
+    // En zen il n'y a pas de record à battre : on affiche la longueur atteinte.
+    ui.bestLabel.textContent = isZen() ? 'Longueur' : 'Record';
+    ui.best.textContent = isZen() ? snake.length : Math.max(best(), score);
     ui.combo.textContent = '×' + combo;
     ui.comboBox.hidden = combo < 2 || state !== 'playing';
   }
 
   function showPanel(opts) {
     overlay.hidden = false;
-    document.querySelector('.title').innerHTML = opts.title === 'Neon Snake'
-      ? 'Neon <span>Snake</span>' : opts.title;
+    document.querySelector('.title').textContent = opts.title;
     ui.subtitle.textContent = opts.subtitle;
     ui.playBtn.textContent = opts.cta;
     ui.scoreboard.hidden = !opts.scoreboard;
@@ -628,6 +698,7 @@
 
   function startGame() {
     audio.unlock();
+    commitRun();                 // une partie abandonnée compte quand même
     resetRun();
     state = 'playing';
     lastFrame = performance.now();
@@ -646,17 +717,20 @@
     }
   }
 
-  function selectDifficulty(value) {
+  /* `persist` n'est vrai que sur un choix explicite du joueur : au chargement,
+     rien ne doit être réécrit, sinon une réinitialisation laisse des traces. */
+  function selectDifficulty(value, persist) {
     if (!DIFFICULTIES[value]) { return; }
     difficulty = value;
-    save('difficulty', value);
-    Array.prototype.forEach.call(document.querySelectorAll('.choice'), function (btn) {
+    if (persist) { P.write('difficulty', value); }
+    Array.prototype.forEach.call(document.querySelectorAll('#difficulty .choice'), function (btn) {
       var active = btn.dataset.diff === value;
       btn.classList.toggle('is-active', active);
       btn.setAttribute('aria-checked', String(active));
     });
     ui.diffHint.textContent = DIFFICULTIES[value].hint;
-    ui.best.textContent = best();
+    if (state === 'menu' || state === 'over') { run.difficulty = value; }
+    renderHud();
   }
 
   function push(dx, dy) {
@@ -673,6 +747,7 @@
   };
 
   document.addEventListener('keydown', function (e) {
+    if (Sheets.isOpen()) { return; }          // les panneaux ont la main
     var move = KEYS[e.key] || KEYS[String(e.key).toLowerCase()];
     if (move) {
       e.preventDefault();
@@ -716,7 +791,12 @@
 
   $('difficulty').addEventListener('click', function (e) {
     var btn = e.target.closest('.choice');
-    if (btn) { selectDifficulty(btn.dataset.diff); }
+    if (btn) { selectDifficulty(btn.dataset.diff, true); }
+  });
+
+  document.querySelector('.menu-links').addEventListener('click', function (e) {
+    var btn = e.target.closest('.link');
+    if (btn) { Sheets.open(btn.dataset.sheet); }
   });
 
   ui.playBtn.addEventListener('click', function () {
@@ -728,19 +808,47 @@
   });
 
   ui.restartBtn.addEventListener('click', startGame);
+  ui.statsBtn.addEventListener('click', function () { Sheets.open('stats'); });
 
   ui.soundBtn.addEventListener('click', function () {
-    audio.enabled = !audio.enabled;
-    save('sound', audio.enabled);
-    ui.soundBtn.setAttribute('aria-pressed', String(audio.enabled));
-    if (audio.enabled) { audio.unlock(); audio.eat(); }
+    var value = !P.getSetting('sound');
+    P.setSetting('sound', value);
+    syncSoundButton();
+    if (value) { audio.unlock(); audio.eat(); }
   });
+
+  function syncSoundButton() {
+    ui.soundBtn.setAttribute('aria-pressed', String(!!P.getSetting('sound')));
+  }
 
   document.addEventListener('visibilitychange', function () {
     if (document.hidden && state === 'playing') { togglePause(); }
   });
 
   window.addEventListener('resize', resize);
+
+  /* ------------------------------------------------------------------ */
+  /* Réglages appliqués en direct                                        */
+  /* ------------------------------------------------------------------ */
+
+  function applyTheme() {
+    document.documentElement.dataset.theme = P.getSetting('theme');
+  }
+
+  Sheets.init({
+    onOpen: function () { if (state === 'playing') { togglePause(); } },
+    onSkinChange: function () { /* le rendu suivant lit déjà le nouveau skin */ },
+    onSettingChange: function (name) {
+      if (name === 'theme') { applyTheme(); }
+      if (name === 'sound') { syncSoundButton(); }
+      // La grille ne peut pas changer sous les pieds du serpent : hors partie,
+      // on rejoue la mise en place tout de suite pour que le menu la montre.
+      if (name === 'grid' && (state === 'menu' || state === 'over')) {
+        resetRun();
+        state = 'menu';
+      }
+    }
+  });
 
   /* ------------------------------------------------------------------ */
   /* Démarrage                                                           */
@@ -751,21 +859,28 @@
     snapshot: function () {
       return {
         state: state,
+        difficulty: difficulty,
+        cols: COLS,
+        skin: P.currentSkin().id,
         score: score,
         combo: combo,
         length: snake.length,
         head: { x: snake[0].x, y: snake[0].y },
+        cells: snake.map(function (c) { return c.x + ',' + c.y; }),
         food: food ? { x: food.cell.x, y: food.cell.y } : null,
         powerup: powerup ? { type: powerup.type, x: powerup.cell.x, y: powerup.cell.y } : null,
-        obstacles: Object.keys(obstacles)
+        obstacles: Object.keys(obstacles),
+        totals: P.totals(),
+        unlocked: Object.keys(P.unlocked())
       };
     }
   };
 
+  applyTheme();
   resize();
-  selectDifficulty(difficulty);
-  ui.soundBtn.setAttribute('aria-pressed', String(audio.enabled));
   resetRun();
+  selectDifficulty(difficulty);
+  syncSoundButton();
   state = 'menu';
   lastFrame = performance.now();
   requestAnimationFrame(frame);

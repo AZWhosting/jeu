@@ -42,17 +42,54 @@ chaque difficulté.
 |---|---|---|---|
 | Facile | traversés (le serpent réapparaît en face) | aucun | 150 → 90 ms par case |
 | Normal | mortels | aucun | 125 → 68 ms |
-| Difficile | mortels | 7 blocs générés aléatoirement | 100 → 52 ms |
+| Difficile | mortels | blocs générés aléatoirement | 100 → 52 ms |
+| **Zen** | traversés | aucun | 165 → 135 ms |
 
-Le meilleur score est conservé **par difficulté** dans le `localStorage`, comme le
-choix de difficulté et l'état du son.
+En **mode zen**, rien ne tue : ni les murs, ni les obstacles, ni son propre corps.
+La partie ne s'arrête jamais d'elle-même — le HUD remplace le record par la longueur
+atteinte. Les parties zen alimentent les statistiques et les succès, mais restent
+hors des records et de la courbe de progression : sans risque, un score n'y veut rien
+dire.
+
+Le meilleur score est conservé **par difficulté** dans le `localStorage`, comme les
+réglages, les succès et les statistiques.
+
+## Succès et skins
+
+Douze succès à débloquer, du « Premier repas » au « Millénaire » (1 000 points en une
+partie), en passant par « Puriste » (300 points sans ramasser un seul bonus) et
+« Sérénité » (40 segments en mode zen). Six d'entre eux ouvrent un **skin** de
+serpent : Rétro, Glace, Orchidée, Braise, Or, et Arc-en-ciel dont la teinte défile le
+long du corps. Chaque déblocage s'annonce par une notification pendant la partie.
+
+## Réglages
+
+| Réglage | Options |
+|---|---|
+| Taille de la grille | 15 × 15, 21 × 21 ou 27 × 27 cases |
+| Vitesse | progressive (le serpent accélère) ou constante |
+| Thème | Néon, Rétro (vert) ou Crépuscule (violet) |
+| Son, effets visuels, quadrillage | activables séparément |
+
+Couper les effets visuels désactive particules, secousses et textes flottants — utile
+sur une machine modeste ou si le mouvement gêne. Un bouton permet d'effacer toutes
+les données locales, en deux temps pour éviter la fausse manœuvre.
+
+## Statistiques
+
+Le panneau *Stats* récapitule les parties jouées, les pommes mangées, les bonus
+ramassés, la longueur maximale, le meilleur combo, le temps de jeu et les points
+cumulés, avec les records par difficulté et un graphique des vingt dernières parties
+(barre la plus haute étiquetée, ligne pointillée de la moyenne, détail au survol).
 
 ## Structure
 
 ```
-index.html      # structure de la page (HUD, plateau, panneau, croix directionnelle)
-src/style.css   # thème néon, mise en page responsive, animations
-src/game.js     # moteur : boucle, collisions, bonus, rendu canvas, sons WebAudio
+index.html       # structure de la page (HUD, plateau, panneaux, croix directionnelle)
+src/style.css    # thèmes, mise en page responsive, animations
+src/progress.js  # persistance : réglages, statistiques, succès, skins (sans DOM)
+src/sheets.js    # panneaux succès / skins / stats / réglages et notifications
+src/game.js      # moteur : boucle, collisions, bonus, rendu canvas, sons WebAudio
 ```
 
 Points techniques notables :
@@ -69,7 +106,9 @@ Points techniques notables :
 
 ## Idées d'évolution
 
-- Tableau des scores en ligne, ou partage du score en image.
-- Nouveaux bonus : aimant à pommes, points doubles temporaires, rétrécissement.
-- Mode « niveaux » avec labyrinthes dessinés à la main.
-- Mode deux joueurs sur le même clavier.
+- Défi quotidien : une graine déterministe pour que tout le monde joue la même
+  partie le même jour.
+- Application installable et hors ligne (manifeste + service worker).
+- Serpent adverse piloté par l'IA, portails appariés, proie mobile.
+- Malus temporaires : contrôles inversés, brouillard.
+- Manette (Gamepad API) et retour haptique sur mobile.
