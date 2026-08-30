@@ -92,6 +92,12 @@ src/sheets.js    # panneaux succès / skins / stats / réglages et notifications
 src/game.js      # moteur : boucle, collisions, bonus, rendu canvas, sons WebAudio
 ```
 
+Les fichiers de `src/` sont appelés avec un suffixe `?v=N` dans `index.html` :
+**incrémente ce numéro dès que tu modifies un fichier de `src/`**, sinon les
+navigateurs (et le CDN de GitHub Pages) continuent de servir l'ancienne version
+depuis leur cache — le HTML est à jour mais le CSS et le JavaScript ne le sont pas,
+et la page se retrouve à moitié cassée.
+
 Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** : la logique avance par ticks réguliers, le

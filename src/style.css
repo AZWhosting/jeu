@@ -396,25 +396,35 @@ kbd {
 /* ---- Liens du menu ---- */
 
 .menu-links {
-  display: flex;
-  justify-content: center;
-  gap: 4px;
-  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 14px;
 }
 
 .link {
-  padding: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 9px 2px;
   font: inherit;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
-  background: none;
-  border: 0;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 10px;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
 
-.link:hover { color: var(--text); background: rgba(255, 255, 255, 0.07); }
+.link:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: color-mix(in srgb, var(--mint) 40%, var(--line));
+}
+
+.link-icon { font-size: 15px; line-height: 1; }
 
 /* ---- Panneau succès / skins / stats / réglages ---- */
 

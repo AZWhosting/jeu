@@ -7,6 +7,21 @@
   var P = window.Progress;
   var Sheets = window.Sheets;
 
+  // Sans ses modules, le moteur planterait en silence sur une page à moitié
+  // chargée (cache périmé, fichier manquant) : mieux vaut le dire clairement.
+  if (!P || !Sheets) {
+    var manquants = [!P ? 'src/progress.js' : null, !Sheets ? 'src/sheets.js' : null]
+      .filter(Boolean).join(' et ');
+    var note = document.getElementById('subtitle');
+    if (note) {
+      note.textContent = 'Chargement incomplet (' + manquants +
+        '). Recharge la page avec Ctrl+Maj+R.';
+      note.style.color = '#ff5d8f';
+    }
+    console.error('Neon Snake : ' + manquants + ' n\'a pas été chargé.');
+    return;
+  }
+
   /* ------------------------------------------------------------------ */
   /* Configuration                                                       */
   /* ------------------------------------------------------------------ */
