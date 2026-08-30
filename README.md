@@ -34,7 +34,8 @@ aucun build, aucun serveur. Ouvre `index.html` et joue.
 monte, jusqu'à ×5. Il retombe à ×1 dès que tu traînes. **En mode zen, le
 chronomètre ne s'applique pas** : le combo est un simple compteur qui monte d'un
 cran à chaque ramassage et atteint ×5 à la cinquième pomme, quel que soit le temps
-écoulé.
+écoulé, et il ne redescend jamais. Le compteur y est affiché dès ×1, pour qu'on voie
+la progression (ailleurs il n'apparaît qu'à partir de ×2).
 
 **Vitesse** : le serpent accélère à mesure qu'il grandit, jusqu'à un plafond propre à
 chaque difficulté.

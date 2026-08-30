@@ -50,7 +50,7 @@
   };
 
   var POWERUP_EVERY = 3;      // une bonne surprise toutes les N pommes
-  var COMBO_WINDOW = 2600;    // ms pour enchaîner et monter le multiplicateur
+  var COMBO_WINDOW = 2600;    // ms pour enchaîner, hors mode zen
   var COMBO_MAX = 5;
   var SLOW_DURATION = 7000;   // ms
   var GHOST_DURATION = 6000;  // ms
@@ -132,7 +132,7 @@
   if (!DIFFICULTIES[difficulty]) { difficulty = 'normal'; }
 
   var snake, prevSnake, dir, queue, obstacles, food, powerup;
-  var score, applesEaten, combo, lastEatAt, growth;
+  var score, applesEaten, pickups, combo, lastEatAt, growth;
   var slowUntil, ghostUntil;
   var accumulator, lastFrame, particles;
   var run, runStartedAt, runCommitted, overSince = 0;
@@ -151,6 +151,7 @@
     growth = 0;
     score = 0;
     applesEaten = 0;
+    pickups = 0;
     combo = 1;
     lastEatAt = -Infinity;
     slowUntil = 0;
@@ -289,14 +290,16 @@
   function consume(item, now) {
     var def = ITEMS[item.type];
 
-    if (lastEatAt === -Infinity) {
+    pickups++;
+    if (isZen()) {
+      // Zen : le combo compte simplement les prises de la partie. ×5 à la
+      // cinquième pomme, sans aucune contrainte de temps ni de distance, et
+      // il ne redescend jamais.
+      combo = Math.min(COMBO_MAX, pickups);
+    } else if (pickups === 1) {
       combo = 1;                                   // première prise de la partie
-    } else if (isZen() || now - lastEatAt < COMBO_WINDOW) {
-      // En zen, le combo est un simple compteur : il monte d'un cran à chaque
-      // ramassage et atteint ×5 à la cinquième pomme, sans limite de temps.
-      combo = Math.min(COMBO_MAX, combo + 1);
     } else {
-      combo = 1;
+      combo = (now - lastEatAt < COMBO_WINDOW) ? Math.min(COMBO_MAX, combo + 1) : 1;
     }
     lastEatAt = now;
 
@@ -705,7 +708,7 @@
     ui.bestLabel.textContent = isZen() ? 'Longueur' : 'Record';
     ui.best.textContent = isZen() ? snake.length : Math.max(best(), score);
     ui.combo.textContent = '×' + combo;
-    ui.comboBox.hidden = combo < 2 || state !== 'playing';
+    ui.comboBox.hidden = state !== 'playing' || (!isZen() && combo < 2);
   }
 
   function showPanel(opts) {
