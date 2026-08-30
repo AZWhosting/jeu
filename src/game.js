@@ -39,7 +39,7 @@
               hint: 'Murs mortels, obstacles et rythme soutenu.' },
     zen:    { label: 'Zen',       baseTick: 165, minTick: 135, wrap: true, obstacles: 0,
               immortal: true,
-              hint: 'Aucune mort possible : on traverse tout, on se détend.' }
+              hint: 'Rien ne tue, et le combo monte à chaque pomme.' }
   };
 
   var ITEMS = {
@@ -289,7 +289,15 @@
   function consume(item, now) {
     var def = ITEMS[item.type];
 
-    combo = (now - lastEatAt < COMBO_WINDOW) ? Math.min(COMBO_MAX, combo + 1) : 1;
+    if (lastEatAt === -Infinity) {
+      combo = 1;                                   // première prise de la partie
+    } else if (isZen() || now - lastEatAt < COMBO_WINDOW) {
+      // En zen, le combo est un simple compteur : il monte d'un cran à chaque
+      // ramassage et atteint ×5 à la cinquième pomme, sans limite de temps.
+      combo = Math.min(COMBO_MAX, combo + 1);
+    } else {
+      combo = 1;
+    }
     lastEatAt = now;
 
     score += def.points * combo;

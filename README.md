@@ -31,7 +31,10 @@ aucun build, aucun serveur. Ouvre `index.html` et joue.
 | ◇ **Fantôme** | Traverse les murs, les obstacles et son propre corps pendant 6 s |
 
 **Combos** : enchaîne deux prises à moins de 2,6 s d'intervalle et le multiplicateur
-monte, jusqu'à ×5. Il retombe à ×1 dès que tu traînes.
+monte, jusqu'à ×5. Il retombe à ×1 dès que tu traînes. **En mode zen, le
+chronomètre ne s'applique pas** : le combo est un simple compteur qui monte d'un
+cran à chaque ramassage et atteint ×5 à la cinquième pomme, quel que soit le temps
+écoulé.
 
 **Vitesse** : le serpent accélère à mesure qu'il grandit, jusqu'à un plafond propre à
 chaque difficulté.
@@ -44,6 +47,8 @@ chaque difficulté.
 | Normal | mortels | aucun | 125 → 68 ms |
 | Difficile | mortels | blocs générés aléatoirement | 100 → 52 ms |
 | **Zen** | traversés | aucun | 165 → 135 ms |
+
+*(le mode zen ignore aussi le chronomètre des combos — voir plus haut)*
 
 En **mode zen**, rien ne tue : ni les murs, ni les obstacles, ni son propre corps.
 La partie ne s'arrête jamais d'elle-même — le HUD remplace le record par la longueur
