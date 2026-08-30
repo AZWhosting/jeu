@@ -3,7 +3,7 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-4-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-5-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
@@ -11,6 +11,7 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🧱 **Neon Bricks** | Casse toutes les briques sans laisser tomber la balle. Bonus, niveaux enchaînés. |
 | 🔢 **Neon 2048** | Glisse, fusionne, vise la plus grande tuile. Quatre tailles de grille. |
 | 💣 **Neon Mines** | Démineur : déduis où sont les mines, marque-les, déblaie le reste. |
+| 🔴 **Neon Four** | Puissance 4 contre une IA qui explore l'arbre des coups. |
 
 Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
 jouées, temps de jeu, points cumulés et succès tous jeux confondus. Chaque jeu
@@ -137,6 +138,30 @@ le temps : les records récompensent donc les grilles déminées vite.
 Réglages propres au jeu : premier clic sûr, marquage automatique des dernières cases,
 chiffres colorés ou sobres.
 
+## 🔴 Neon Four
+
+Puissance 4 contre un adversaire. Les flèches visent une colonne, `Espace` lâche le
+jeton — ou un clic direct sur la colonne. Le premier à aligner quatre jetons l'emporte,
+horizontalement, verticalement ou en diagonale.
+
+**L'adversaire réfléchit vraiment** : il explore l'arbre des coups en minimax avec
+élagage alpha-bêta, en examinant les colonnes centrales d'abord pour élaguer plus tôt.
+Il évalue chaque fenêtre de quatre cases selon ce qu'elle promet, et saisit toujours une
+victoire immédiate comme il pare toujours une défaite immédiate — même en mode maladroit.
+
+| Mode | Profondeur | Erreurs |
+|---|---|---|
+| Facile | 2 coups d'avance | une fois sur trois |
+| Normal | 4 coups | rarement |
+| Difficile | 6 coups | jamais |
+| **Zen** | joue au hasard | `U` annule ton dernier coup |
+
+Le score compte 10 points par jeton posé, plus une prime de victoire d'autant plus
+grosse que la partie a été courte. Un match nul en rapporte le tiers.
+
+Réglages propres au jeu : qui commence (toi, l'adversaire, ou en alternance) et le
+grisage des colonnes pleines.
+
 ## Succès, skins et statistiques
 
 Chaque jeu a ses **succès** — douze chacun — et plusieurs
@@ -185,6 +210,7 @@ src/games/
   bricks/manifest.js · game.js · bricks.css
   2048/manifest.js · game.js · 2048.css
   mines/manifest.js · game.js · mines.css
+  four/manifest.js · game.js · four.css
 src/hub/hub.js · hub.css      # le hall
 ```
 
@@ -222,10 +248,10 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  quatre jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
-  52 ms), le casse-briques simule sa balle à 120 pas par seconde, 2048 ne demande aucun
-  tick — sa boucle ne sert qu'aux animations —, et le démineur s'en sert seulement pour
-  son chronomètre.
+  cinq jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  52 ms), le casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4
+  ne demandent aucun tick — leur boucle ne sert qu'aux animations —, et le démineur s'en
+  sert seulement pour son chronomètre.
 - **Entrées à plusieurs régimes** (`core/input.js`) : coups discrets (une direction, une
   action) pour les jeux au tour par tour ; axe maintenu et position du pointeur pour la
   raquette du casse-briques ; tape sur une case, action secondaire (clic droit ou appui
@@ -236,14 +262,14 @@ Points techniques notables :
 - **Canvas adapté au `devicePixelRatio`**, redimensionné avec la fenêtre.
 - **Garde-fou de chargement** : chaque jeu vérifie que les fichiers du socle ont bien
   défini ce qu'ils devaient, et affiche lequel manque plutôt que d'échouer en silence.
-- `window.__neonSnake`, `window.__neonBricks`, `window.__neon2048` et
-  `window.__neonMines` exposent un
+- `window.__neonSnake`, `window.__neonBricks`, `window.__neon2048`, `window.__neonMines`
+  et `window.__neonFour` exposent un
   instantané en lecture seule de la partie, et de quoi placer une situation précise :
   c'est le point d'entrée des tests automatisés dans un navigateur.
 
 ## Idées d'évolution
 
-- Un cinquième jeu : Puissance 4 ou Memory, avec une IA pour le premier.
+- Un sixième jeu : Memory, Sokoban ou Tetris.
 - Défi quotidien : une graine déterministe pour que tout le monde joue la même partie
   le même jour.
 - Application installable et hors ligne (manifeste + service worker).

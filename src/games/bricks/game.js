@@ -261,6 +261,10 @@
     // au coup précédent doit quand même se débloquer tout de suite.
     checkUnlocks();
 
+    // Un plateau vidé enclenche le niveau suivant, même balle au repos :
+    // la règle ne doit pas dépendre de l'endroit où se trouve la balle.
+    if (!bricks.length) { nextLevel(); return; }
+
     if (docked) {
       ball.x = paddle.x;
       prevBall = { x: ball.x, y: ball.y };
@@ -286,15 +290,16 @@
       else if (ball.y > 1 + BALL_R * 2) { loseBall(); return; }
     }
 
-    if (!bricks.length) {
-      score += 100;
-      run.score = score;
-      run.levels++;
-      if (!lostThisLevel) { run.perfectLevel = true; }
-      audio.unlocked();
-      startLevel(level + 1);
-      renderHud();
-    }
+  }
+
+  function nextLevel() {
+    score += 100;
+    run.score = score;
+    run.levels++;
+    if (!lostThisLevel) { run.perfectLevel = true; }
+    audio.unlocked();
+    startLevel(level + 1);
+    renderHud();
   }
 
   /* ------------------------------------------------------------------ */
