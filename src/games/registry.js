@@ -34,6 +34,12 @@ window.GameRegistry = [
     styles: ['src/games/blocks/blocks.css']
   },
   {
+    id: 'crates',
+    meta: ['src/games/crates/manifest.js'],
+    scripts: ['src/games/crates/game.js'],
+    styles: ['src/games/crates/crates.css']
+  },
+  {
     id: '2048',
     meta: ['src/games/2048/manifest.js'],
     scripts: ['src/games/2048/game.js'],
