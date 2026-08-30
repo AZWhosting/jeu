@@ -28,6 +28,12 @@ window.GameRegistry = [
     styles: ['src/games/four/four.css']
   },
   {
+    id: 'blocks',
+    meta: ['src/games/blocks/manifest.js'],
+    scripts: ['src/games/blocks/game.js'],
+    styles: ['src/games/blocks/blocks.css']
+  },
+  {
     id: '2048',
     meta: ['src/games/2048/manifest.js'],
     scripts: ['src/games/2048/game.js'],

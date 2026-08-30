@@ -3,7 +3,7 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-5-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-6-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
@@ -12,6 +12,7 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🔢 **Neon 2048** | Glisse, fusionne, vise la plus grande tuile. Quatre tailles de grille. |
 | 💣 **Neon Mines** | Démineur : déduis où sont les mines, marque-les, déblaie le reste. |
 | 🔴 **Neon Four** | Puissance 4 contre une IA qui explore l'arbre des coups. |
+| 🟦 **Neon Blocks** | Tetris : emboîte les pièces, complète les lignes, tiens le rythme. |
 
 Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
 jouées, temps de jeu, points cumulés et succès tous jeux confondus. Chaque jeu
@@ -162,6 +163,30 @@ grosse que la partie a été courte. Un match nul en rapporte le tiers.
 Réglages propres au jeu : qui commence (toi, l'adversaire, ou en alternance) et le
 grisage des colonnes pleines.
 
+## 🟦 Neon Blocks
+
+Le Tetris. Les flèches déplacent, `Haut` fait tourner, `Bas` accélère la descente,
+`Espace` pose la pièce d'un coup et `C` la met de côté pour plus tard. La projection
+au sol montre où elle atterrira.
+
+Une pièce qui touche le fond dispose d'un court répit avant de se figer : de quoi la
+glisser une dernière fois. La rotation est rattrapée par un décalage quand la place
+manque contre un mur. Les pièces sortent d'un sac de sept, si bien qu'aucune ne se
+fait attendre indéfiniment.
+
+| Mode | Départ | Descente |
+|---|---|---|
+| Facile | niveau 1 | 1100 ms par case, jamais sous 170 |
+| Normal | niveau 1 | 900 ms, jamais sous 110 |
+| Difficile | niveau 5 | 800 ms, jamais sous 70 |
+| **Zen** | niveau 1 | 1300 ms — pile pleine, le haut s'évapore, on ne perd jamais |
+
+Une ligne rapporte 100 points, deux 300, trois 500, quatre 800, le tout multiplié par
+le niveau — qui monte toutes les dix lignes. Poser soi-même la pièce rapporte deux
+points par case gagnée.
+
+Réglages propres au jeu : projection au sol, et une ou trois pièces annoncées.
+
 ## Succès, skins et statistiques
 
 Chaque jeu a ses **succès** — douze chacun — et plusieurs
@@ -211,8 +236,9 @@ src/games/
   2048/manifest.js · game.js · 2048.css
   mines/manifest.js · game.js · mines.css
   four/manifest.js · game.js · four.css
+  blocks/manifest.js · game.js · blocks.css
 src/hub/hub.js · hub.css      # le hall
-tests/                        # quinze suites de bout en bout (voir plus bas)
+tests/                        # seize suites de bout en bout (voir plus bas)
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
@@ -229,12 +255,12 @@ au premier chargement, puis effacées.
 
 ## Tests
 
-Quinze suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
+Seize suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
 jeux, appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 
 ```bash
 npm install && npx playwright install chromium
-npm test                        # les quinze suites, environ 4 minutes
+npm test                        # les seize suites, environ 4 minutes
 node tests/run.js mines four    # seulement celles dont le nom correspond
 npm start                       # sert le jeu sur http://127.0.0.1:8123
 ```
@@ -245,7 +271,8 @@ Détails et façon d'écrire une suite dans [`tests/README.md`](tests/README.md)
 Ces tests ne sont pas décoratifs : ils ont attrapé, entre autres, une fin de partie
 jamais détectée sur un plateau déjà bloqué (2048), un niveau suivant qui ne
 s'enclenchait pas si la balle était au repos (casse-briques), des succès non
-évalués tant que la balle restait collée à la raquette, une difficulté réécrite au
+évalués tant que la balle restait collée à la raquette, un éclair de ligne complétée
+cadencé sur la gravité (Tetris), une difficulté réécrite au
 chargement qui survivait à une réinitialisation, et le cache périmé qui rendait les
 boutons du menu inertes.
 
@@ -271,9 +298,10 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  cinq jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
-  52 ms), le casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4
-  ne demandent aucun tick — leur boucle ne sert qu'aux animations —, et le démineur s'en
+  six jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  52 ms), le Tetris fait descendre sa pièce au rythme du niveau (1100 à 70 ms), le
+  casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4 ne
+  demandent aucun tick — leur boucle ne sert qu'aux animations —, et le démineur s'en
   sert seulement pour son chronomètre.
 - **Entrées à plusieurs régimes** (`core/input.js`) : coups discrets (une direction, une
   action) pour les jeux au tour par tour ; axe maintenu et position du pointeur pour la
@@ -285,14 +313,14 @@ Points techniques notables :
 - **Canvas adapté au `devicePixelRatio`**, redimensionné avec la fenêtre.
 - **Garde-fou de chargement** : chaque jeu vérifie que les fichiers du socle ont bien
   défini ce qu'ils devaient, et affiche lequel manque plutôt que d'échouer en silence.
-- `window.__neonSnake`, `window.__neonBricks`, `window.__neon2048`, `window.__neonMines`
-  et `window.__neonFour` exposent un
+- `window.__neonSnake`, `window.__neonBricks`, `window.__neon2048`, `window.__neonMines`,
+  `window.__neonFour` et `window.__neonBlocks` exposent un
   instantané en lecture seule de la partie, et de quoi placer une situation précise :
   c'est le point d'entrée des tests automatisés dans un navigateur.
 
 ## Idées d'évolution
 
-- Un sixième jeu : Memory, Sokoban ou Tetris.
+- Un septième jeu : Memory ou Sokoban.
 - Défi quotidien : une graine déterministe pour que tout le monde joue la même partie
   le même jour.
 - Application installable et hors ligne (manifeste + service worker).
