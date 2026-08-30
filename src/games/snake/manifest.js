@@ -10,8 +10,18 @@ Games.snake = (function () {
   return {
     id: 'snake',
     name: 'Neon Snake',
+    accent: 'Snake',                 // partie du nom mise en couleur
     tagline: 'Mange, grandis, évite ta propre queue.',
     icon: '🐍',
+    color: '#38f9c3',
+    hint: 'Flèches / WASD / ZQSD — {Espace} pour mettre en pause',
+    sideLabel: 'Combo',
+    legend: [
+      { color: '#ff5d8f', label: 'Pomme +10' },
+      { color: '#ffd166', label: 'Or +50' },
+      { color: '#55b6ff', label: 'Ralenti' },
+      { color: '#a78bfa', label: 'Fantôme' }
+    ],
 
     gridSizes: GRID_SIZES,
     defaultDifficulty: 'normal',

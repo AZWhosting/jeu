@@ -14,6 +14,8 @@
     'src/core/loop.js': window.Core && Core.createLoop,
     'src/core/input.js': window.Core && Core.attachInput,
     'src/core/audio.js': window.Core && Core.createAudio,
+    'src/core/ui.js': window.Core && Core.createHud,
+    'src/core/shell.js': window.Core && Core.Shell,
     'src/games/snake/manifest.js': manifest
   };
   var missing = Object.keys(required).filter(function (file) { return !required[file]; }).join(', ');
@@ -64,16 +66,6 @@
   var canvas = $('board');
   var boardWrap = document.querySelector('.board-wrap');
   var effects = $('effects');
-  var overlay = $('overlay');
-  var ui = {
-    score: $('score'), best: $('best'), bestLabel: $('bestLabel'),
-    combo: $('combo'), comboBox: $('comboBox'),
-    subtitle: $('subtitle'), diffHint: $('diffHint'), difficultyField: $('difficultyField'),
-    difficulty: $('difficulty'),
-    scoreboard: $('scoreboard'), finalScore: $('finalScore'), finalLength: $('finalLength'),
-    finalBest: $('finalBest'), playBtn: $('playBtn'),
-    pauseBtn: $('pauseBtn'), soundBtn: $('soundBtn'), restartBtn: $('restartBtn'), statsBtn: $('statsBtn')
-  };
 
   /* ------------------------------------------------------------------ */
   /* État                                                                */
@@ -331,16 +323,18 @@
     var result = commitRun();
     var beaten = !!(result && result.record);
 
-    ui.finalScore.textContent = score;
-    ui.finalLength.textContent = snake.length;
-    ui.finalBest.textContent = Math.max(best(), score);
     renderHud();
 
-    showPanel({
+    panel.show({
       title: beaten ? 'Nouveau record !' : 'Perdu',
       subtitle: beaten ? 'Tu viens de battre ton meilleur score.' : 'Encore un essai ?',
       cta: 'Rejouer',
-      scoreboard: true
+      scoreboard: {
+        score: score,
+        extraLabel: 'Longueur',
+        extra: snake.length,
+        best: Math.max(best(), score)
+      }
     });
   }
 
@@ -611,35 +605,23 @@
   /* Interface                                                           */
   /* ------------------------------------------------------------------ */
 
-  function bump(el) {
-    if (!effectsOn()) { return; }
-    el.classList.remove('bump');
-    void el.offsetWidth;
-    el.classList.add('bump');
-  }
+  var hud = Core.createHud(progress);
+  var panel = Core.createPanel(function () {
+    if (state === 'paused') { togglePause(); } else { startGame(); }
+  });
+  var toolbar, picker;
 
   function renderHud() {
-    if (ui.score.textContent !== String(score)) { bump(ui.score); }
-    ui.score.textContent = score;
-    // En zen il n'y a pas de record à battre : on affiche la longueur atteinte.
-    ui.bestLabel.textContent = isZen() ? 'Longueur' : 'Record';
-    ui.best.textContent = isZen() ? snake.length : Math.max(best(), score);
-    ui.combo.textContent = '×' + combo;
-    // En zen le compteur reste visible dès ×1 : sa montée est le retour
-    // d'information qui rend la règle lisible.
-    ui.comboBox.hidden = state !== 'playing' || (!isZen() && combo < 2);
+    hud.set({
+      score: score,
+      side: '×' + combo,
+      // En zen le compteur reste visible dès ×1 : sa montée rend la règle lisible.
+      sideVisible: state === 'playing' && (isZen() || combo >= 2),
+      // En zen il n'y a pas de record à battre : on affiche la longueur atteinte.
+      bestLabel: isZen() ? 'Longueur' : 'Record',
+      best: isZen() ? snake.length : Math.max(best(), score)
+    });
   }
-
-  function showPanel(opts) {
-    overlay.hidden = false;
-    document.querySelector('.title').textContent = opts.title;
-    ui.subtitle.textContent = opts.subtitle;
-    ui.playBtn.textContent = opts.cta;
-    ui.scoreboard.hidden = !opts.scoreboard;
-    ui.difficultyField.hidden = !!opts.hideDifficulty;
-  }
-
-  function hidePanel() { overlay.hidden = true; }
 
   function startGame() {
     audio.unlock();
@@ -647,49 +629,20 @@
     resetRun();
     state = 'playing';
     loop.resetClock();
-    hidePanel();
+    panel.hide();
     renderHud();
   }
 
   function togglePause() {
     if (state === 'playing') {
       state = 'paused';
-      showPanel({ title: 'Pause', subtitle: 'Reprends quand tu veux.', cta: 'Reprendre', hideDifficulty: true });
+      panel.show({ title: 'Pause', subtitle: 'Reprends quand tu veux.',
+                   cta: 'Reprendre', hideDifficulty: true });
     } else if (state === 'paused') {
       state = 'playing';
       loop.resetClock();
-      hidePanel();
+      panel.hide();
     }
-  }
-
-  /* `persist` n'est vrai que sur un choix explicite du joueur : au chargement,
-     rien ne doit être réécrit, sinon une réinitialisation laisse des traces. */
-  function selectDifficulty(value, persist) {
-    if (!progress.difficultyById(value)) { return; }
-    difficulty = value;
-    if (persist) { progress.setSetting('difficulty', value); }
-    Array.prototype.forEach.call(ui.difficulty.children, function (btn) {
-      var active = btn.dataset.diff === value;
-      btn.classList.toggle('is-active', active);
-      btn.setAttribute('aria-checked', String(active));
-    });
-    ui.diffHint.textContent = conf().hint;
-    if (state === 'menu' || state === 'over') { run.difficulty = value; }
-    renderHud();
-  }
-
-  function buildDifficultyButtons() {
-    progress.difficulties().forEach(function (d) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'choice';
-      btn.dataset.diff = d.id;
-      btn.textContent = d.label;
-      btn.setAttribute('role', 'radio');
-      btn.setAttribute('aria-checked', 'false');
-      ui.difficulty.appendChild(btn);
-    });
-    ui.difficulty.classList.add('choices-' + progress.difficulties().length);
   }
 
   function push(dx, dy) {
@@ -705,14 +658,6 @@
     else { togglePause(); }
   }
 
-  function syncSoundButton() {
-    ui.soundBtn.setAttribute('aria-pressed', String(!!progress.getSetting('sound')));
-  }
-
-  function applyTheme() {
-    document.documentElement.dataset.theme = progress.getSetting('theme');
-  }
-
   /* ------------------------------------------------------------------ */
   /* Câblage                                                             */
   /* ------------------------------------------------------------------ */
@@ -721,8 +666,8 @@
     onOpen: function () { if (state === 'playing') { togglePause(); } },
     onSkinChange: function () { /* le rendu suivant lit déjà le nouveau skin */ },
     onSettingChange: function (name) {
-      if (name === 'theme') { applyTheme(); }
-      if (name === 'sound') { syncSoundButton(); }
+      if (name === 'theme') { Core.applyTheme(progress); }
+      if (name === 'sound' && toolbar) { toolbar.syncSound(); }
       // La grille ne peut pas changer sous les pieds du serpent : hors partie,
       // on rejoue la mise en place tout de suite pour que le menu la montre.
       if (name === 'grid' && (state === 'menu' || state === 'over')) {
@@ -743,7 +688,7 @@
 
   Core.attachInput({
     canvas: canvas,
-    dpad: $('dpad'),
+    dpad: document.getElementById('dpad'),
     blocked: function () { return sheets.isOpen(); },
     onInteract: function () { audio.unlock(); },
     onDirection: push,
@@ -751,36 +696,19 @@
     onEscape: function () { if (state === 'playing') { togglePause(); } }
   });
 
-  ui.difficulty.addEventListener('click', function (e) {
-    var btn = e.target.closest('.choice');
-    if (btn) { selectDifficulty(btn.dataset.diff, true); }
+  toolbar = Core.wireToolbar({
+    progress: progress,
+    sheets: sheets,
+    onPause: function () { if (state === 'playing' || state === 'paused') { togglePause(); } },
+    onRestart: startGame,
+    onSoundOn: function () { audio.unlock(); audio.pickup(); },
+    isPlaying: function () { return state === 'playing'; }
   });
 
-  document.querySelector('.menu-links').addEventListener('click', function (e) {
-    var btn = e.target.closest('.link');
-    if (btn) { sheets.open(btn.dataset.sheet); }
-  });
-
-  ui.playBtn.addEventListener('click', function () {
-    if (state === 'paused') { togglePause(); } else { startGame(); }
-  });
-
-  ui.pauseBtn.addEventListener('click', function () {
-    if (state === 'playing' || state === 'paused') { togglePause(); }
-  });
-
-  ui.restartBtn.addEventListener('click', startGame);
-  ui.statsBtn.addEventListener('click', function () { sheets.open('stats'); });
-
-  ui.soundBtn.addEventListener('click', function () {
-    var value = !progress.getSetting('sound');
-    progress.setSetting('sound', value);
-    syncSoundButton();
-    if (value) { audio.unlock(); audio.pickup(); }
-  });
-
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden && state === 'playing') { togglePause(); }
+  picker = Core.createDifficultyPicker(progress, function (id) {
+    difficulty = id;
+    if (run && (state === 'menu' || state === 'over')) { run.difficulty = id; }
+    renderHud();
   });
 
   /* ------------------------------------------------------------------ */
@@ -811,13 +739,12 @@
   window.Progress = progress;    // pratique pour les tests et la console
   window.Sheets = sheets;
 
-  document.title = manifest.name + ' — jeu d\'arcade';
-  applyTheme();
+  Core.Shell.dress(manifest);
+  hud.set({ sideLabel: manifest.sideLabel });
+  Core.applyTheme(progress);
   loop.resize();
-  buildDifficultyButtons();
   resetRun();
-  selectDifficulty(difficulty);
-  syncSoundButton();
+  picker.select(difficulty);
   state = 'menu';
   loop.start();
 }());

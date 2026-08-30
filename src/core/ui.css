@@ -107,7 +107,7 @@ body {
   font-weight: 700;
 }
 
-.stat-combo .stat-value { color: var(--gold); }
+.stat-side .stat-value { color: var(--gold); }
 
 .stat-value.bump { animation: bump 0.28s ease-out; }
 
@@ -367,6 +367,51 @@ kbd {
 .pad-left  { grid-area: 2 / 1; }
 .pad-down  { grid-area: 2 / 2; }
 .pad-right { grid-area: 2 / 3; }
+
+/* ---- Légende des éléments du jeu ---- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.legend[hidden] { display: none; }
+
+/* ---- Retour au hall ---- */
+
+.back {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: 2px;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--muted);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.back:hover { color: var(--text); background: rgba(255, 255, 255, 0.09); }
 
 /* ---- Liens du menu ---- */
 
@@ -764,6 +809,7 @@ kbd {
 @media (max-height: 720px) {
   .title { font-size: 26px; }
   .stat-value { font-size: 22px; }
+  .legend { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
