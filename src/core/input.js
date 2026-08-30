@@ -1,5 +1,6 @@
-/* Socle — entrées : clavier, balayage tactile et croix directionnelle,
-   ramenés à deux évènements simples : une direction ou une action. */
+/* Socle — entrées : clavier, pointeur, balayage tactile et croix directionnelle.
+   Deux usages coexistent : les coups discrets (une direction, une action) et le
+   maintien continu, dont un jeu de raquette a besoin. */
 window.Core = window.Core || {};
 
 Core.attachInput = function (options) {
@@ -18,12 +19,31 @@ Core.attachInput = function (options) {
   var onAction = options.onAction || function () {};
   var onEscape = options.onEscape || function () {};
   var onInteract = options.onInteract || function () {};
+  var onPointer = options.onPointer || null;
+  var swipeEnabled = options.swipe !== false;
+
+  // Touches et pavé maintenus : le jeu lit cet axe à chaque tick.
+  var held = {};
+  var padHeld = null;
+
+  function axis() {
+    if (padHeld) { return { x: padHeld[0], y: padHeld[1] }; }
+    var x = 0, y = 0;
+    Object.keys(held).forEach(function (k) {
+      if (!held[k]) { return; }
+      var move = KEYS[k];
+      if (move) { x += move[0]; y += move[1]; }
+    });
+    return { x: Math.max(-1, Math.min(1, x)), y: Math.max(-1, Math.min(1, y)) };
+  }
 
   document.addEventListener('keydown', function (e) {
     if (blocked()) { return; }
-    var move = KEYS[e.key] || KEYS[String(e.key).toLowerCase()];
+    var name = KEYS[e.key] ? e.key : String(e.key).toLowerCase();
+    var move = KEYS[name];
     if (move) {
       e.preventDefault();
+      held[name] = true;
       onInteract();
       onDirection(move[0], move[1]);
       return;
@@ -36,17 +56,47 @@ Core.attachInput = function (options) {
     if (e.key === 'Escape') { onEscape(); }
   });
 
+  document.addEventListener('keyup', function (e) {
+    var name = KEYS[e.key] ? e.key : String(e.key).toLowerCase();
+    if (KEYS[name]) { held[name] = false; }
+  });
+
+  // Une touche relâchée hors de la page ne doit pas rester coincée.
+  window.addEventListener('blur', function () { held = {}; padHeld = null; });
+
   if (options.canvas) {
+    var canvas = options.canvas;
     var touchStart = null;
-    options.canvas.addEventListener('pointerdown', function (e) {
+
+    function ratio(e) {
+      var rect = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left) / Math.max(1, rect.width),
+        y: (e.clientY - rect.top) / Math.max(1, rect.height)
+      };
+    }
+
+    canvas.addEventListener('pointerdown', function (e) {
       touchStart = { x: e.clientX, y: e.clientY };
       onInteract();
+      if (onPointer && !blocked()) { onPointer(ratio(e), true); }
     });
-    options.canvas.addEventListener('pointerup', function (e) {
+
+    if (onPointer) {
+      canvas.addEventListener('pointermove', function (e) {
+        if (blocked()) { return; }
+        // Sur écran tactile, seuls les mouvements doigt posé comptent.
+        if (e.pointerType !== 'mouse' && !touchStart) { return; }
+        onPointer(ratio(e), !!touchStart);
+      });
+    }
+
+    canvas.addEventListener('pointerup', function (e) {
       if (!touchStart) { return; }
       var dx = e.clientX - touchStart.x;
       var dy = e.clientY - touchStart.y;
       touchStart = null;
+      if (!swipeEnabled) { return; }
       if (Math.abs(dx) < SWIPE_MIN && Math.abs(dy) < SWIPE_MIN) { return; }
       if (Math.abs(dx) > Math.abs(dy)) { onDirection(dx > 0 ? 1 : -1, 0); }
       else { onDirection(0, dy > 0 ? 1 : -1); }
@@ -54,12 +104,25 @@ Core.attachInput = function (options) {
   }
 
   if (options.dpad) {
-    options.dpad.addEventListener('click', function (e) {
+    var dpad = options.dpad;
+
+    dpad.addEventListener('click', function (e) {
       var btn = e.target.closest('.pad');
       if (!btn) { return; }
       onInteract();
       var move = DIR_BY_NAME[btn.dataset.dir];
       if (move) { onDirection(move[0], move[1]); }
     });
+
+    // Maintien sur le pavé : utile pour une raquette, inoffensif ailleurs.
+    dpad.addEventListener('pointerdown', function (e) {
+      var btn = e.target.closest('.pad');
+      if (btn) { padHeld = DIR_BY_NAME[btn.dataset.dir] || null; }
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (type) {
+      dpad.addEventListener(type, function () { padHeld = null; });
+    });
   }
+
+  return { axis: axis };
 };

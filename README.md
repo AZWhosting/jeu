@@ -3,11 +3,12 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-2-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-3-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
 | 🐍 **Neon Snake** | Mange, grandis, évite ta propre queue. Bonus, combos, quatre difficultés. |
+| 🧱 **Neon Bricks** | Casse toutes les briques sans laisser tomber la balle. Bonus, niveaux enchaînés. |
 | 🔢 **Neon 2048** | Glisse, fusionne, vise la plus grande tuile. Quatre tailles de grille. |
 
 Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
@@ -33,6 +34,13 @@ Les deux jeux partagent les mêmes commandes.
 | Démarrer / rejouer | `Espace` ou `Entrée` | Bouton *Jouer* |
 | Couper le son | — | Bouton ♪ |
 | Panneaux | — | Bouton ☰, ou les liens du menu |
+| **Enregistrer et quitter** | — | Bouton ⏏, la flèche ‹, ou le bouton du panneau de pause |
+
+**Quitter en cours de partie n'efface rien** : le bouton ⏏ de la barre d'outils, la
+flèche de retour du HUD et le bouton *Enregistrer et quitter* du panneau de pause font
+tous la même chose — la partie en cours est ajoutée aux statistiques (score, durée,
+succès), puis on revient au hall. Une partie vide, où rien ne s'est passé, n'est pas
+enregistrée.
 
 ## 🐍 Neon Snake
 
@@ -64,6 +72,28 @@ atteinte.
 Réglages propres au jeu : taille de la grille (15, 21 ou 27 cases), vitesse
 progressive ou constante, quadrillage visible ou non.
 
+## 🧱 Neon Bricks
+
+Une balle, une raquette, des briques. La raquette se pilote aux flèches, à la souris
+ou au doigt ; l'angle de renvoi dépend du point d'impact — au centre la balle repart
+tout droit, sur le bord elle part de biais. Chaque niveau vidé en ajoute une rangée et
+accélère un peu la balle.
+
+| Bonus | Effet |
+|---|---|
+| 🟢 **Raquette large** | Raquette agrandie de moitié pendant 10 s |
+| 🔵 **Balle lente** | Balle ralentie pendant 6 s |
+| 🔴 **Vie en plus** | Une vie supplémentaire |
+
+| Mode | Vies | Rangées | Particularité |
+|---|---|---|---|
+| Facile | 4 | 4 | Raquette large, balle patiente |
+| Normal | 3 | 5 | L'équilibre de référence |
+| Difficile | 2 | 6 | Raquette étroite, rangée du haut à casser deux fois |
+| **Zen** | ∞ | 4 | La balle rebondit aussi en bas : on ne perd jamais |
+
+Réglages propres au jeu : vitesse de la balle, suivi au pointeur, bonus activables.
+
 ## 🔢 Neon 2048
 
 Glisse les tuiles : deux tuiles identiques qui se rencontrent fusionnent et leur
@@ -84,7 +114,7 @@ tuiles (une sur dix en 4, ou toutes en 2).
 
 ## Succès, skins et statistiques
 
-Chaque jeu a ses **succès** — douze pour le Snake, douze pour 2048 — et plusieurs
+Chaque jeu a ses **succès** — douze chacun — et plusieurs
 d'entre eux débloquent un **skin** : couleurs du serpent d'un côté, palettes de tuiles
 de l'autre, dont un arc-en-ciel dans les deux cas. Chaque déblocage s'annonce par une
 notification pendant la partie.
@@ -120,13 +150,14 @@ src/core/
   sheets.js                   # panneaux succès / skins / stats / réglages, et notifications
   ui.js                       # HUD, panneau central, sélecteur de difficulté, barre d'outils
   loop.js                     # boucle à pas fixe, rendu interpolé, canvas HiDPI
-  input.js                    # clavier, balayage tactile, croix directionnelle
+  input.js                    # clavier (coup par coup et maintien), pointeur, balayage, pavé
   audio.js                    # bruitages WebAudio
   shell.js                    # charge le jeu demandé et habille la page
   ui.css                      # thèmes et coquille visuelle partagée
 src/games/
   registry.js                 # catalogue : quels fichiers pour quel jeu
   snake/manifest.js · game.js · legacy.js
+  bricks/manifest.js · game.js · bricks.css
   2048/manifest.js · game.js · 2048.css
 src/hub/hub.js · hub.css      # le hall
 ```
@@ -164,23 +195,26 @@ page se retrouve à moitié cassée. Les fichiers d'un jeu héritent automatique
 Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
-  ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks.
-  2048 s'en sert autrement : il ne demande aucun tick et n'utilise que le rendu, pour
-  ses animations de glissement.
+  ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
+  trois jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  52 ms), le casse-briques simule sa balle à 120 pas par seconde, et 2048 ne demande
+  aucun tick — sa boucle ne sert qu'aux animations de glissement.
+- **Entrées à deux régimes** (`core/input.js`) : les jeux au tour par tour lisent des
+  coups discrets (une direction, une action), le casse-briques lit un axe maintenu et
+  la position du pointeur. Même module, deux usages.
 - **File d'entrées** (Snake) : jusqu'à deux directions sont mises en attente, pour que
   les virages serrés ne soient jamais avalés ; les demi-tours sont filtrés.
 - **Sons générés à la volée** en WebAudio (oscillateurs) — aucun fichier audio.
 - **Canvas adapté au `devicePixelRatio`**, redimensionné avec la fenêtre.
 - **Garde-fou de chargement** : chaque jeu vérifie que les fichiers du socle ont bien
   défini ce qu'ils devaient, et affiche lequel manque plutôt que d'échouer en silence.
-- `window.__neonSnake.snapshot()` et `window.__neon2048.snapshot()` exposent un
-  instantané en lecture seule de la partie : c'est le point d'entrée des tests
-  automatisés dans un navigateur.
+- `window.__neonSnake`, `window.__neonBricks` et `window.__neon2048` exposent un
+  instantané en lecture seule de la partie, et de quoi placer une situation précise :
+  c'est le point d'entrée des tests automatisés dans un navigateur.
 
 ## Idées d'évolution
 
-- Un troisième jeu : Casse-briques imposerait une physique continue et éprouverait
-  la boucle autrement.
+- Un quatrième jeu : Démineur ou Puissance 4 éprouveraient le socle sans canvas animé.
 - Défi quotidien : une graine déterministe pour que tout le monde joue la même partie
   le même jour.
 - Application installable et hors ligne (manifeste + service worker).

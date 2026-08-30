@@ -329,6 +329,7 @@
       title: beaten ? 'Nouveau record !' : 'Perdu',
       subtitle: beaten ? 'Tu viens de battre ton meilleur score.' : 'Encore un essai ?',
       cta: 'Rejouer',
+      quit: 'Retour au hall',
       scoreboard: {
         score: score,
         extraLabel: 'Longueur',
@@ -608,7 +609,7 @@
   var hud = Core.createHud(progress);
   var panel = Core.createPanel(function () {
     if (state === 'paused') { togglePause(); } else { startGame(); }
-  });
+  }, function () { quitToHub(); });
   var toolbar, picker;
 
   function renderHud() {
@@ -621,6 +622,13 @@
       bestLabel: isZen() ? 'Longueur' : 'Record',
       best: isZen() ? snake.length : Math.max(best(), score)
     });
+  }
+
+  /* Quitter en cours de route sans rien perdre : la partie est enregistrée
+     dans les statistiques avant de revenir au hall. */
+  function quitToHub() {
+    commitRun();
+    location.href = 'index.html';
   }
 
   function startGame() {
@@ -637,7 +645,8 @@
     if (state === 'playing') {
       state = 'paused';
       panel.show({ title: 'Pause', subtitle: 'Reprends quand tu veux.',
-                   cta: 'Reprendre', hideDifficulty: true });
+                   cta: 'Reprendre', hideDifficulty: true,
+                   quit: 'Enregistrer et quitter' });
     } else if (state === 'paused') {
       state = 'playing';
       loop.resetClock();
@@ -701,6 +710,7 @@
     sheets: sheets,
     onPause: function () { if (state === 'playing' || state === 'paused') { togglePause(); } },
     onRestart: startGame,
+    onQuit: quitToHub,
     onSoundOn: function () { audio.unlock(); audio.pickup(); },
     isPlaying: function () { return state === 'playing'; }
   });

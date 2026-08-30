@@ -10,6 +10,12 @@ window.GameRegistry = [
     styles: []
   },
   {
+    id: 'bricks',
+    meta: ['src/games/bricks/manifest.js'],
+    scripts: ['src/games/bricks/game.js'],
+    styles: ['src/games/bricks/bricks.css']
+  },
+  {
     id: '2048',
     meta: ['src/games/2048/manifest.js'],
     scripts: ['src/games/2048/game.js'],

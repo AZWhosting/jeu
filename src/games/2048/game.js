@@ -277,6 +277,7 @@
       title: beaten ? 'Nouveau record !' : 'Plus de coup possible',
       subtitle: beaten ? 'Tu viens de battre ton meilleur score.' : 'La grille est bloquée.',
       cta: 'Rejouer',
+      quit: 'Retour au hall',
       scoreboard: {
         score: score,
         extraLabel: 'Meilleure tuile',
@@ -483,6 +484,13 @@
     });
   }
 
+  /* Quitter en cours de route sans rien perdre : la partie est enregistrée
+     dans les statistiques avant de revenir au hall. */
+  function quitToHub() {
+    commitRun();
+    location.href = 'index.html';
+  }
+
   function startGame() {
     audio.unlock();
     commitRun();
@@ -497,7 +505,8 @@
     if (state === 'playing') {
       state = 'paused';
       panel.show({ title: 'Pause', subtitle: 'Reprends quand tu veux.',
-                   cta: 'Reprendre', hideDifficulty: true });
+                   cta: 'Reprendre', hideDifficulty: true,
+                   quit: 'Enregistrer et quitter' });
     } else if (state === 'paused') {
       state = 'playing';
       panel.hide();
@@ -528,7 +537,7 @@
   /* ------------------------------------------------------------------ */
 
   hud = Core.createHud(progress);
-  panel = Core.createPanel(onPlay);
+  panel = Core.createPanel(onPlay, function () { quitToHub(); });
 
   sheets = Core.createSheets(progress, {
     onOpen: function () { if (state === 'playing') { togglePause(); } },
@@ -562,6 +571,7 @@
     sheets: sheets,
     onPause: function () { if (state === 'playing' || state === 'paused') { togglePause(); } },
     onRestart: startGame,
+    onQuit: quitToHub,
     onSoundOn: function () { audio.unlock(); audio.pickup(); },
     isPlaying: function () { return state === 'playing'; }
   });

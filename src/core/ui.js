@@ -49,16 +49,18 @@ window.Core = window.Core || {};
   /* Panneau central : menu, pause, fin de partie                        */
   /* ------------------------------------------------------------------ */
 
-  Core.createPanel = function (onPlay) {
+  Core.createPanel = function (onPlay, onQuit) {
     var overlay = $('overlay');
     var nodes = {
       title: $('title'), subtitle: $('subtitle'), cta: $('playBtn'),
+      quit: $('quitPanelBtn'),
       field: $('difficultyField'), scoreboard: $('scoreboard'),
       score: $('finalScore'), extra: $('finalExtra'), extraLabel: $('finalExtraLabel'),
       best: $('finalBest')
     };
 
     nodes.cta.addEventListener('click', function () { onPlay(); });
+    if (nodes.quit && onQuit) { nodes.quit.addEventListener('click', function () { onQuit(); }); }
 
     return {
       show: function (opts) {
@@ -67,6 +69,10 @@ window.Core = window.Core || {};
         nodes.subtitle.textContent = opts.subtitle;
         nodes.cta.textContent = opts.cta;
         nodes.field.hidden = !!opts.hideDifficulty;
+        if (nodes.quit) {
+          nodes.quit.hidden = !opts.quit;
+          if (opts.quit) { nodes.quit.textContent = opts.quit; }
+        }
         nodes.scoreboard.hidden = !opts.scoreboard;
         if (opts.scoreboard) {
           nodes.score.textContent = opts.scoreboard.score;
@@ -139,6 +145,15 @@ window.Core = window.Core || {};
     $('pauseBtn').addEventListener('click', options.onPause);
     $('restartBtn').addEventListener('click', options.onRestart);
     $('statsBtn').addEventListener('click', function () { options.sheets.open('stats'); });
+
+    if (options.onQuit) {
+      $('quitBtn').addEventListener('click', options.onQuit);
+      // Quitter par la flèche du HUD enregistre aussi : c'est la même sortie.
+      document.querySelector('.back').addEventListener('click', function (e) {
+        e.preventDefault();
+        options.onQuit();
+      });
+    }
 
     soundBtn.addEventListener('click', function () {
       var value = !progress.getSetting('sound');

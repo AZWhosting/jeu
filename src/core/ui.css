@@ -300,6 +300,20 @@ canvas {
 .cta:hover { transform: translateY(-1px); }
 .cta:active { transform: translateY(1px); box-shadow: none; }
 
+.cta-ghost {
+  margin-top: 8px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+.cta-ghost:hover { color: var(--text); background: rgba(255, 255, 255, 0.09); }
+.cta-ghost[hidden] { display: none; }
+
 .hint {
   margin: 12px 0 0;
   font-size: 12px;
