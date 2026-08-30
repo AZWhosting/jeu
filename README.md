@@ -20,8 +20,8 @@ succès, skins, statistiques et réglages.
 
 ## Jouer
 
-- **En local** : ouvre `index.html` dans un navigateur, ou lance un petit serveur
-  (`npx http-server -p 8080` puis <http://localhost:8080>).
+- **En local** : ouvre `index.html` dans un navigateur, ou lance le serveur intégré
+  avec `npm start` puis <http://127.0.0.1:8123>.
 - **En ligne** : active GitHub Pages sur la branche du dépôt (Settings → Pages →
   *Deploy from a branch*), le tout est servi tel quel.
 
@@ -212,6 +212,7 @@ src/games/
   mines/manifest.js · game.js · mines.css
   four/manifest.js · game.js · four.css
 src/hub/hub.js · hub.css      # le hall
+tests/                        # quinze suites de bout en bout (voir plus bas)
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
@@ -225,6 +226,28 @@ règles et le rendu.
 tous les jeux ; `neon:<jeu>:*` porte le reste (réglages propres, totaux, succès,
 records). Les données de l'ancien schéma `neon-snake:*` sont reprises automatiquement
 au premier chargement, puis effacées.
+
+## Tests
+
+Quinze suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
+jeux, appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
+
+```bash
+npm install && npx playwright install chromium
+npm test                        # les quinze suites, environ 4 minutes
+node tests/run.js mines four    # seulement celles dont le nom correspond
+npm start                       # sert le jeu sur http://127.0.0.1:8123
+```
+
+Le lanceur démarre son propre serveur statique : rien d'autre à installer.
+Détails et façon d'écrire une suite dans [`tests/README.md`](tests/README.md).
+
+Ces tests ne sont pas décoratifs : ils ont attrapé, entre autres, une fin de partie
+jamais détectée sur un plateau déjà bloqué (2048), un niveau suivant qui ne
+s'enclenchait pas si la balle était au repos (casse-briques), des succès non
+évalués tant que la balle restait collée à la raquette, une difficulté réécrite au
+chargement qui survivait à une réinitialisation, et le cache périmé qui rendait les
+boutons du menu inertes.
 
 ## Ajouter un jeu
 
