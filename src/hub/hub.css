@@ -1,5 +1,21 @@
 /* Le hall — profil commun et cartes des jeux. */
 
+/* Une page de jeu tient dans l'écran et ne doit pas défiler ; le hall, lui,
+   s'allonge à chaque jeu ajouté. Il rétablit donc le défilement que la
+   coquille commune interdit. */
+body.page-hub {
+  overflow-y: auto;
+  align-items: flex-start;
+  overscroll-behavior: auto;
+}
+
+/* Centré verticalement quand la place le permet, sans jamais rogner le haut
+   quand le contenu dépasse. */
+.page-hub .hall {
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
 .hall {
   width: 100%;
   max-width: 560px;
@@ -117,6 +133,11 @@
   text-align: center;
   font-size: 12px;
   color: var(--muted);
+}
+
+@media (min-width: 720px) {
+  .hall { max-width: 760px; }
+  .games { display: grid; grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 380px) {

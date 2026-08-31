@@ -95,6 +95,14 @@
     });
   }
 
+  // L'accroche compte les jeux elle-même : elle annonçait encore « deux jeux »
+  // alors que le catalogue en comptait huit.
+  var tagline = document.querySelector('.hall-tagline');
+  if (tagline) {
+    tagline.textContent = games.length + (games.length > 1 ? ' jeux' : ' jeu') +
+      ', un profil, aucune dépendance.';
+  }
+
   // Le thème est un réglage partagé : le hall porte celui choisi dans les jeux.
   var app = Core.Storage.read('app', 'settings', {}) || {};
   document.documentElement.dataset.theme = app.theme || 'neon';

@@ -17,7 +17,8 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🐱 **Neon Meow** | Un chat par territoire, jamais deux qui se touchent. Déduction pure. |
 
 Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
-jouées, temps de jeu, points cumulés et succès tous jeux confondus. Chaque jeu
+jouées, temps de jeu, points cumulés et succès tous jeux confondus. Il défile quand le
+catalogue dépasse l'écran, et passe à deux colonnes dès qu'il y a la place. Chaque jeu
 s'ouvre dans la même coquille (`jeu.html?id=…`) et hérite des mêmes panneaux :
 succès, skins, statistiques et réglages.
 

@@ -20,9 +20,44 @@ module.exports = {
       check('les liens pointent vers la coquille', cards.every(c => /jeu\.html\?id=/.test(c.href)), cards.map(c => c.href).join(' '));
       const profile = await page.$$eval('#profile .tile-value', e => e.map(x => x.textContent));
       check('profil commun affiché', profile.length === 4, profile.join(' | '));
+    check('l\'accroche compte les jeux elle-même',
+          /^8 jeux/.test(await page.textContent('.hall-tagline')),
+          await page.textContent('.hall-tagline'));
       await page.screenshot({ path: h.shot('p1-hall') });
 
-      console.log('\n[Snake via la coquille]');
+      t.section('Le hall défile');
+    // Le catalogue s'allonge à chaque jeu : sur un écran court, il faut
+    // pouvoir atteindre la dernière carte.
+    var court = await h.newPage({ viewport: { width: 390, height: 600 } });
+    await court.goto(h.hub());
+    await court.waitForTimeout(300);
+    var mesure = await court.evaluate(function () {
+      return { contenu: document.documentElement.scrollHeight,
+               ecran: document.documentElement.clientHeight };
+    });
+    check('le contenu dépasse l\'écran', mesure.contenu > mesure.ecran,
+          mesure.contenu + 'px pour ' + mesure.ecran + 'px');
+    await court.mouse.wheel(0, 900);
+    await court.waitForTimeout(250);
+    check('la page défile', (await court.evaluate(function () { return window.scrollY; })) > 100,
+          await court.evaluate(function () { return window.scrollY; }));
+    check('la dernière carte devient visible',
+          await court.$eval('.game-card:last-child', function (el) {
+            var r = el.getBoundingClientRect();
+            return r.top < window.innerHeight && r.bottom > 0;
+          }));
+    await court.close();
+
+    var jeu = await h.newPage({ viewport: { width: 390, height: 600 } });
+    await jeu.goto(h.url('snake'));
+    await jeu.waitForTimeout(300);
+    await jeu.mouse.wheel(0, 600);
+    await jeu.waitForTimeout(200);
+    check('une page de jeu, elle, ne défile pas',
+          (await jeu.evaluate(function () { return window.scrollY; })) === 0);
+    await jeu.close();
+
+    console.log('\n[Snake via la coquille]');
       await page.click('.game-card:has-text("Snake")');
       await page.waitForTimeout(500);
       check('titre du jeu posé par le manifeste', (await page.textContent('#title')) === 'Neon Snake', await page.textContent('#title'));
