@@ -94,39 +94,59 @@
     return place(0) ? cols : null;
   }
 
-  /* Territoires : on part des cases des chats et on fait grandir chaque
-     région au hasard, ce qui les garde connexes. */
-  function growRegions(n, cats) {
+  /* Taille minimale d'un territoire : un territoire d'une case offrirait son
+     chat sans la moindre déduction, et un territoire géant se lit comme le
+     fond du plateau. */
+  function minRegionSize(n) { return n <= 5 ? 2 : 3; }
+
+  /* Territoires : tous les chats poussent en même temps, anneau par anneau.
+     Chacun avance donc au même rythme, et aucun ne peut avaler le plateau
+     pendant que les autres sont bloqués. Un peu de désordre dans l'ordre de
+     traitement suffit à donner des contours irréguliers. */
+  function growRegions(n, cats, relax) {
     var region = new Array(n * n).fill(-1);
-    var frontier = cats.map(function (cell, i) { region[cell] = i; return [cell]; });
+    var pending = [];
+    shuffled(cats.map(function (cell, i) { return { cell: cell, r: i }; }))
+      .forEach(function (seed) { region[seed.cell] = seed.r; pending.push(seed); });
+
     var remaining = n * n - n;
     var guard = 0;
 
-    while (remaining > 0 && guard++ < n * n * 40) {
-      var live = [];
-      for (var i = 0; i < frontier.length; i++) { if (frontier[i].length) { live.push(i); } }
-      if (!live.length) { break; }
-      var r = live[Math.floor(Math.random() * live.length)];
-      var pick = Math.floor(Math.random() * frontier[r].length);
-      var cell = frontier[r][pick];
-      var cx = cell % n, cy = Math.floor(cell / n);
-      var neighbours = shuffled([[1, 0], [-1, 0], [0, 1], [0, -1]]);
-      var grew = false;
+    while (pending.length && remaining > 0 && guard++ < n * n * 20) {
+      // File stricte : chaque territoire traite ses cases dans l'ordre où il
+      // les a prises, donc tous avancent d'un anneau à la même cadence. Piocher
+      // ailleurs dans la file laissait un territoire prendre de l'avance.
+      var item = pending.shift();
+      var cx = item.cell % n, cy = Math.floor(item.cell / n);
+      var dirs = shuffled([[1, 0], [-1, 0], [0, 1], [0, -1]]);
 
-      for (var d = 0; d < neighbours.length; d++) {
-        var nx = cx + neighbours[d][0], ny = cy + neighbours[d][1];
+      for (var d = 0; d < dirs.length; d++) {
+        var nx = cx + dirs[d][0], ny = cy + dirs[d][1];
         if (nx < 0 || ny < 0 || nx >= n || ny >= n) { continue; }
         var ni = ny * n + nx;
         if (region[ni] !== -1) { continue; }
-        region[ni] = r;
-        frontier[r].push(ni);
+        region[ni] = item.r;
         remaining--;
-        grew = true;
-        break;
+        pending.push({ cell: ni, r: item.r });
       }
-      if (!grew) { frontier[r].splice(pick, 1); }
     }
-    return remaining === 0 ? region : null;
+    if (remaining > 0) { return null; }
+    return balanced(n, region, relax) ? region : null;
+  }
+
+  function minRegionSize(n) { return n <= 5 ? 2 : 3; }
+  function maxRegionSize(n) { return Math.ceil(n * 1.5); }
+
+  /* Un territoire d'une case offrirait son chat sans la moindre déduction ;
+     un territoire géant se lirait comme le fond du plateau. */
+  function balanced(n, region, relax) {
+    var counts = new Array(n).fill(0);
+    region.forEach(function (r) { counts[r]++; });
+    var ceiling = maxRegionSize(n) + (relax || 0);
+    for (var i = 0; i < n; i++) {
+      if (counts[i] < minRegionSize(n) || counts[i] > ceiling) { return false; }
+    }
+    return true;
   }
 
   /* Énumère les solutions, en s'arrêtant dès qu'on en a trouvé `limit`. */
@@ -196,6 +216,13 @@
   function repair(n, region, solution) {
     var isSolution = {};
     solution.forEach(function (c) { isSolution[c] = true; });
+    var floorSize = minRegionSize(n);
+
+    function sizeOf(id) {
+      var count = 0;
+      for (var i = 0; i < region.length; i++) { if (region[i] === id) { count++; } }
+      return count;
+    }
 
     for (var iter = 0; iter < 400; iter++) {
       var sols = findSolutions(n, region, 2);
@@ -210,6 +237,7 @@
       for (var k = 0; k < candidates.length && !moved; k++) {
         var cell = candidates[k];
         var from = region[cell];
+        if (sizeOf(from) <= floorSize) { continue; }      // ne pas rapetisser un territoire
         var x = cell % n, y = Math.floor(cell / n);
         var options = [];
         [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
@@ -219,7 +247,7 @@
           if (r !== from && options.indexOf(r) === -1) { options.push(r); }
         });
 
-        var choices = shuffled(options);
+        var choices = shuffled(options).filter(function (id) { return sizeOf(id) < maxRegionSize(n) + 3; });
         for (var o = 0; o < choices.length; o++) {
           region[cell] = choices[o];
           // Le territoire d'origine doit rester d'un seul tenant.
@@ -232,16 +260,26 @@
     return false;
   }
 
-  /* Tire une grille jusqu'à en obtenir une dont la solution est unique. */
+  /* Tire une grille jusqu'à en obtenir une dont la solution est unique et le
+     découpage équilibré. Plusieurs découpages sont essayés par solution, et le
+     plafond de taille se desserre si la recherche traîne : mieux vaut un
+     territoire un peu gros que changer la taille de la grille dans le dos du
+     joueur. */
   function generate(n) {
-    for (var attempt = 0; attempt < 40; attempt++) {
+    for (var attempt = 0; attempt < 150; attempt++) {
+      var relax = attempt > 100 ? 3 : (attempt > 60 ? 1 : 0);
       var cols = randomSolution(n);
       if (!cols) { continue; }
       var cats = cols.map(function (c, row) { return row * n + c; });
-      var region = growRegions(n, cats);
-      if (!region) { continue; }
-      if (countSolutions(n, region, 2) === 1 || repair(n, region, cats)) {
-        return { regions: region, solution: cats, attempts: attempt + 1 };
+
+      for (var shape = 0; shape < 8; shape++) {
+        var region = growRegions(n, cats, relax);
+        if (!region) { continue; }
+        var unique = countSolutions(n, region, 2) === 1 || repair(n, region, cats);
+        // La réparation déplace des cases : on revérifie l'équilibre après coup.
+        if (unique && balanced(n, region, relax)) {
+          return { regions: region, solution: cats, attempts: attempt + 1 };
+        }
       }
     }
     return null;
@@ -250,9 +288,19 @@
   function newGrid() {
     N = conf().size;
     var grid = generate(N);
-    if (!grid) {                       // filet de sécurité : ne devrait pas servir
-      N = 5;
-      grid = generate(5);
+    if (!grid) {
+      // Dernier recours : on garde la taille demandée et on se contente d'une
+      // solution unique, quitte à accepter un découpage moins régulier. Changer
+      // la taille reviendrait à changer la difficulté sans le dire.
+      for (var i = 0; i < 200 && !grid; i++) {
+        var cols = randomSolution(N);
+        if (!cols) { continue; }
+        var cats = cols.map(function (c, row) { return row * N + c; });
+        var region = growRegions(N, cats, 99);
+        if (region && (countSolutions(N, region, 2) === 1 || repair(N, region, cats))) {
+          grid = { regions: region, solution: cats };
+        }
+      }
     }
     regions = grid.regions;
     solution = grid.solution;

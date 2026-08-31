@@ -8,11 +8,15 @@ Games.meow = (function () {
   'use strict';
 
   // Teintes de territoires : assez sourdes pour que les chats ressortent.
+  // Huit teintes de territoires, réparties sur le cercle chromatique pour que
+  // deux territoires voisins ne se confondent jamais. Assez sombres pour que
+  // les chats ressortent.
   var REGIONS = {
-    neon:    ['#1f4b57', '#2b3f6b', '#4a2f5e', '#5c2f45', '#5c4a24', '#27543f', '#3c3a5e', '#1f5450'],
-    ginger:  ['#5c3a1e', '#6b4423', '#7a4f28', '#59321c', '#6e3d20', '#4d2d18', '#7d5730', '#43281a'],
-    ocean:   ['#123a5c', '#14496f', '#175d86', '#1b74a0', '#10314d', '#1d5f7a', '#0f2a44', '#226b8c'],
-    ember:   ['#4a2016', '#5c2a17', '#6e3618', '#7d4420', '#3d1a12', '#66301a', '#8a5228', '#472315']
+    neon:    ['#1f5057', '#25386e', '#4a2a70', '#6b2560', '#6e2a3d', '#7a441f', '#5f5a1f', '#1f5c3d'],
+    // Familles d'une seule teinte : c'est l'échelle de clarté qui les sépare.
+    ginger:  ['#3a2113', '#5a3218', '#7a441f', '#9a5626', '#b3672f', '#4a2915', '#8a4d22', '#c47a3f'],
+    ocean:   ['#0e2a44', '#123a5c', '#175384', '#1d6aa4', '#2482c4', '#0b2038', '#1a4f72', '#3f9bd6'],
+    ember:   ['#3a1710', '#5a2216', '#7a2f1b', '#9a3d21', '#b34c27', '#4a1c13', '#8a3a20', '#c96b34']
   };
 
   var CATS = {

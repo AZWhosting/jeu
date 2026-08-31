@@ -63,13 +63,22 @@ module.exports = {
     // Trente grilles par taille, vérifiées une à une dans le navigateur.
     for (var n = 5; n <= 7; n++) {
       var report = await page.evaluate(function (size) {
-        var bad = { unique: 0, regions: 0, solution: 0, failed: 0 };
+        var bad = { unique: 0, regions: 0, solution: 0, failed: 0, tiny: 0, huge: 0 };
+        var floorSize = size <= 5 ? 2 : 3;
+        var ceilSize = Math.ceil(size * 1.5) + 3;
         var samples = [];
         for (var k = 0; k < 30; k++) {
           var grid = window.__neonMeow.generate(size);
           if (!grid) { bad.failed++; continue; }
           if (window.__neonMeow.countSolutions(size, grid.regions, 3) !== 1) { bad.unique++; }
           if (new Set(grid.regions).size !== size) { bad.regions++; }
+          // Un territoire d'une case donne son chat sans déduction ; un
+          // territoire géant se lit comme le fond du plateau.
+          var counts = {};
+          grid.regions.forEach(function (r) { counts[r] = (counts[r] || 0) + 1; });
+          var sizes = Object.keys(counts).map(function (k) { return counts[k]; });
+          if (Math.min.apply(null, sizes) < floorSize) { bad.tiny++; }
+          if (Math.max.apply(null, sizes) > ceilSize) { bad.huge++; }
           // La solution annoncée respecte-t-elle bien toutes les règles ?
           var cols = grid.solution.map(function (c) { return c % size; });
           var rows = grid.solution.map(function (c) { return Math.floor(c / size); });
@@ -96,6 +105,10 @@ module.exports = {
             report.bad.regions + ' grille(s) mal découpée(s)');
       check(n + ' × ' + n + ' : la solution respecte les règles', report.bad.solution === 0,
             report.bad.solution + ' solution(s) fautive(s)');
+      check(n + ' × ' + n + ' : aucun territoire minuscule', report.bad.tiny === 0,
+            report.bad.tiny + ' grille(s) avec un territoire trop petit');
+      check(n + ' × ' + n + ' : aucun territoire géant', report.bad.huge === 0,
+            report.bad.huge + ' grille(s) avec un territoire trop gros');
 
       var broken = 0;
       report.samples.forEach(function (sample) {
@@ -104,10 +117,37 @@ module.exports = {
       check(n + ' × ' + n + ' : territoires d\'un seul tenant', broken === 0, broken + ' région(s) coupée(s)');
     }
 
+    t.section('La taille annoncée est toujours tenue');
+    // Un échec de génération ne doit jamais faire glisser la partie vers une
+    // grille plus petite : ce serait changer la difficulté sans le dire.
+    for (var size = 0; size < 2; size++) {
+      var diff = size === 0 ? 'hard' : 'easy';
+      var expected = size === 0 ? 7 : 5;
+      await page.goto(h.url('meow'));
+      await page.click('[data-diff="' + diff + '"]');
+      await page.click('#playBtn');
+      await page.waitForTimeout(300);
+      var served = await page.evaluate(function () {
+        var sizes = {};
+        for (var k = 0; k < 25; k++) {
+          window.__neonMeow.solveNow();
+          var s = window.__neonMeow.snapshot();
+          sizes[s.size] = (sizes[s.size] || 0) + 1;
+        }
+        return sizes;
+      });
+      check('en ' + diff + ', vingt-cinq grilles font toutes ' + expected + ' × ' + expected,
+            Object.keys(served).length === 1 && Number(Object.keys(served)[0]) === expected,
+            JSON.stringify(served));
+    }
+
     t.section('Poser, barrer, effacer');
+    // La difficulté reste enregistrée d'une partie à l'autre : on la repose.
     await page.goto(h.url('meow'));
+    await page.click('[data-diff="normal"]');
     await page.click('#playBtn');
     await page.waitForTimeout(300);
+    check('la grille est bien de 6 × 6', (await snap()).size === 6, (await snap()).size);
     await api('place', 0, 0, 1);
     s = await snap();
     check('un chat se pose', s.cells[0] === 1, s.cells[0]);

@@ -236,13 +236,22 @@ touche `H` donne un coup de patte : elle place un chat juste, contre cinquante p
 | Difficile | 7 × 7 | Les territoires deviennent retors |
 | **Zen** | 6 × 6 | Sans classement, et les coups de patte sont gratuits |
 
-**Les grilles sont tirées au sort, jamais préécrites** — et surtout, jamais ambiguës.
-Le générateur pose une solution, découpe les territoires autour d'elle, puis vérifie :
-tant qu'une autre solution existe, il la casse en déplaçant une de ses cases vers un
-territoire voisin, ce qui invalide la solution parasite sans toucher à la vraie. Il ne
-livre la grille que lorsqu'elle n'a plus qu'une seule solution. Aucune partie ne demande
-donc de deviner, et les tests le revérifient sur quatre-vingt-dix grilles à chaque
-exécution.
+**Les grilles sont tirées au sort, jamais préécrites** — et trois choses sont garanties
+avant qu'une grille arrive à l'écran :
+
+- **une seule solution.** Le générateur pose une solution, découpe les territoires
+  autour d'elle, puis répare : tant qu'une autre solution existe, il la casse en
+  déplaçant une de ses cases vers un territoire voisin, ce qui invalide la solution
+  parasite sans toucher à la vraie.
+- **des territoires comparables.** Ils poussent tous en même temps, anneau par anneau,
+  et aucun n'est accepté en dessous de trois cases ni au-dessus d'une fois et demie la
+  moyenne. Un territoire d'une seule case donnerait son chat sans la moindre déduction ;
+  un territoire géant se lirait comme le fond du plateau.
+- **la taille annoncée.** Si la recherche traîne, le générateur desserre ses exigences
+  d'équilibre plutôt que de servir une grille plus petite : la difficulté choisie est
+  toujours celle qu'on joue.
+
+Les tests revérifient tout cela sur quatre-vingt-dix grilles à chaque exécution.
 
 Réglages propres au jeu : signalement des bagarres, et barrage automatique des cases
 qu'un chat posé vient d'interdire.
