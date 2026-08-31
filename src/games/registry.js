@@ -40,6 +40,12 @@ window.GameRegistry = [
     styles: ['src/games/crates/crates.css']
   },
   {
+    id: 'meow',
+    meta: ['src/games/meow/manifest.js'],
+    scripts: ['src/games/meow/game.js'],
+    styles: ['src/games/meow/meow.css']
+  },
+  {
     id: '2048',
     meta: ['src/games/2048/manifest.js'],
     scripts: ['src/games/2048/game.js'],

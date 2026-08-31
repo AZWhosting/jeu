@@ -3,7 +3,7 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-7-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-8-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
@@ -14,6 +14,7 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🔴 **Neon Four** | Puissance 4 contre une IA qui explore l'arbre des coups. |
 | 🟦 **Neon Blocks** | Tetris : emboîte les pièces, complète les lignes, tiens le rythme. |
 | 📦 **Neon Crates** | Pousse-caisses : douze tableaux à résoudre, annulation à volonté. |
+| 🐱 **Neon Meow** | Un chat par territoire, jamais deux qui se touchent. Déduction pure. |
 
 Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
 jouées, temps de jeu, points cumulés et succès tous jeux confondus. Chaque jeu
@@ -215,6 +216,37 @@ attrapés ainsi pendant l'écriture.
 
 Réglages propres au jeu : signalement des caisses bloquées, et quadrillage du sol.
 
+## 🐱 Neon Meow
+
+Un casse-tête de déduction, dans la famille de *Meowdoku*. Le plateau est découpé en
+territoires colorés, et il faut y installer les chats :
+
+1. **un chat par territoire**, ni plus ni moins ;
+2. **jamais deux chats sur la même ligne ni la même colonne** ;
+3. **jamais deux chats qui se touchent**, pas même en diagonale.
+
+Un clic pose un chat, un clic droit — ou un appui long — barre une case dont on a
+déduit qu'elle est vide. Deux chats qui ne peuvent pas cohabiter deviennent roses. La
+touche `H` donne un coup de patte : elle place un chat juste, contre cinquante points.
+
+| Mode | Grille | Particularité |
+|---|---|---|
+| Facile | 5 × 5 | De quoi prendre le pli |
+| Normal | 6 × 6 | Il faut vraiment déduire |
+| Difficile | 7 × 7 | Les territoires deviennent retors |
+| **Zen** | 6 × 6 | Sans classement, et les coups de patte sont gratuits |
+
+**Les grilles sont tirées au sort, jamais préécrites** — et surtout, jamais ambiguës.
+Le générateur pose une solution, découpe les territoires autour d'elle, puis vérifie :
+tant qu'une autre solution existe, il la casse en déplaçant une de ses cases vers un
+territoire voisin, ce qui invalide la solution parasite sans toucher à la vraie. Il ne
+livre la grille que lorsqu'elle n'a plus qu'une seule solution. Aucune partie ne demande
+donc de deviner, et les tests le revérifient sur quatre-vingt-dix grilles à chaque
+exécution.
+
+Réglages propres au jeu : signalement des bagarres, et barrage automatique des cases
+qu'un chat posé vient d'interdire.
+
 ## Succès, skins et statistiques
 
 Chaque jeu a ses **succès** — douze chacun — et plusieurs
@@ -266,8 +298,9 @@ src/games/
   four/manifest.js · game.js · four.css
   blocks/manifest.js · game.js · blocks.css
   crates/manifest.js · game.js · crates.css
+  meow/manifest.js · game.js · meow.css
 src/hub/hub.js · hub.css      # le hall
-tests/                        # dix-sept suites de bout en bout (voir plus bas)
+tests/                        # dix-huit suites de bout en bout (voir plus bas)
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
@@ -284,12 +317,12 @@ au premier chargement, puis effacées.
 
 ## Tests
 
-Dix-sept suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
+Dix-huit suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
 jeux, appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 
 ```bash
 npm install && npx playwright install chromium
-npm test                        # les dix-sept suites, environ 4 minutes
+npm test                        # les dix-huit suites, environ 4 minutes
 node tests/run.js mines four    # seulement celles dont le nom correspond
 npm start                       # sert le jeu sur http://127.0.0.1:8123
 ```
@@ -301,7 +334,8 @@ Ces tests ne sont pas décoratifs : ils ont attrapé, entre autres, une fin de p
 jamais détectée sur un plateau déjà bloqué (2048), un niveau suivant qui ne
 s'enclenchait pas si la balle était au repos (casse-briques), des succès non
 évalués tant que la balle restait collée à la raquette, un éclair de ligne complétée
-cadencé sur la gravité (Tetris), deux tableaux de pousse-caisses insolubles, une difficulté réécrite au
+cadencé sur la gravité (Tetris), deux tableaux de pousse-caisses insolubles, un générateur de grilles
+qui échouait vingt-six fois sur trente en 7 × 7, une difficulté réécrite au
 chargement qui survivait à une réinitialisation, et le cache périmé qui rendait les
 boutons du menu inertes.
 
@@ -327,11 +361,11 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  sept jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  huit jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
   52 ms), le Tetris fait descendre sa pièce au rythme du niveau (1100 à 70 ms), le
   casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4 ne
   demandent aucun tick — leur boucle ne sert qu'aux animations —, le démineur s'en
-  sert seulement pour son chronomètre, et le pousse-caisses pas du tout.
+  sert seulement pour son chronomètre, et ni le pousse-caisses ni Neon Meow n'en ont besoin.
 - **Entrées à plusieurs régimes** (`core/input.js`) : coups discrets (une direction, une
   action) pour les jeux au tour par tour ; axe maintenu et position du pointeur pour la
   raquette du casse-briques ; tape sur une case, action secondaire (clic droit ou appui
@@ -343,13 +377,14 @@ Points techniques notables :
 - **Garde-fou de chargement** : chaque jeu vérifie que les fichiers du socle ont bien
   défini ce qu'ils devaient, et affiche lequel manque plutôt que d'échouer en silence.
 - `window.__neonSnake`, `window.__neonBricks`, `window.__neon2048`, `window.__neonMines`,
-  `window.__neonFour`, `window.__neonBlocks` et `window.__neonCrates` exposent un
+  `window.__neonFour`, `window.__neonBlocks`, `window.__neonCrates` et `window.__neonMeow`
+  exposent un
   instantané en lecture seule de la partie, et de quoi placer une situation précise :
   c'est le point d'entrée des tests automatisés dans un navigateur.
 
 ## Idées d'évolution
 
-- Un huitième jeu : Memory, ou un solitaire.
+- Un neuvième jeu : Memory, ou un solitaire.
 - Défi quotidien : une graine déterministe pour que tout le monde joue la même partie
   le même jour.
 - Application installable et hors ligne (manifeste + service worker).

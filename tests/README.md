@@ -6,7 +6,7 @@ appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 ```bash
 npm install          # récupère Playwright
 npx playwright install chromium
-npm test             # les dix-sept suites
+npm test             # les dix-huit suites
 node tests/run.js snake four    # seulement celles dont le nom contient ça
 ```
 
@@ -30,13 +30,14 @@ harnais fournit `h.page`, `h.url('snake')`, `h.hub()`, `h.fileUrl('snake')`,
 ## Ce sur quoi ils s'appuient
 
 Chaque jeu expose une sonde en lecture seule — `window.__neonSnake`,
-`__neonBricks`, `__neon2048`, `__neonMines`, `__neonFour`, `__neonBlocks`, `__neonCrates` — qui donne un
+`__neonBricks`, `__neon2048`, `__neonMines`, `__neonFour`, `__neonBlocks`, `__neonCrates`, `__neonMeow` — qui donne un
 instantané de la partie et, pour certains, de quoi poser une situation précise
 (placer une grille, planter des mines, lancer la balle). C'est ce qui permet de
 tester des règles sans dépendre du hasard : le premier clic sûr du démineur est
 vérifié sur cent parties, les alignements du puissance 4 sur des positions
 construites à la main, et les douze tableaux du pousse-caisses sont passés à un
-solveur qui prouve leur solubilité.
+solveur qui prouve leur solubilité. Neon Meow va plus loin : la suite génère
+quatre-vingt-dix grilles et vérifie que chacune n'a qu'une seule solution.
 
 ## Écrire une suite
 
