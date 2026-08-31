@@ -88,9 +88,9 @@ module.exports = {
       const empty = await page.evaluate(() => JSON.parse(localStorage.getItem('neon:snake:totals') || 'null'));
       check('aucune partie fantôme enregistrée', !empty || !empty.games, JSON.stringify(empty));
 
-      console.log('\n[Le hall liste les trois jeux]');
+      console.log('\n[Le hall liste tous les jeux]');
       const names = await page.$$eval('.game-name', e => e.map(x => x.textContent));
-      check('huit jeux', names.length === 8, names.join(' / '));
+      check('neuf jeux', names.length === 9, names.join(' / '));
 
 
     check('aucune erreur JS', errors.length === 0, errors.join(' | ') || undefined);

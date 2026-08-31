@@ -1,0 +1,4 @@
+/* Neon Cells — le tapis se dessine entièrement sur le canvas : la coquille
+   du socle suffit, moins la croix directionnelle qu'un jeu de cartes n'utilise
+   pas. */
+.dpad { display: none !important; }

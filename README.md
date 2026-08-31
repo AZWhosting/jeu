@@ -3,7 +3,7 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-8-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-9-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
@@ -15,6 +15,7 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🟦 **Neon Blocks** | Tetris : emboîte les pièces, complète les lignes, tiens le rythme. |
 | 📦 **Neon Crates** | Pousse-caisses : douze tableaux à résoudre, annulation à volonté. |
 | 🐱 **Neon Meow** | Un chat par territoire, jamais deux qui se touchent. Déduction pure. |
+| 🃏 **Neon Cells** | Réussite FreeCell : 52 cartes visibles, aucune donne insoluble servie. |
 
 Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
 jouées, temps de jeu, points cumulés et succès tous jeux confondus. Il défile quand le
@@ -31,11 +32,12 @@ succès, skins, statistiques et réglages.
 
 ## Contrôles
 
-Les deux jeux partagent les mêmes commandes.
+Tous les jeux partagent les mêmes commandes.
 
 | Action | Clavier | Tactile |
 |---|---|---|
 | Se déplacer / glisser | Flèches, `WASD` ou `ZQSD` | Balayage sur le plateau, ou croix directionnelle |
+| Saisir et déposer (cartes) | — | Glisser du doigt ou à la souris ; une tape envoie la carte |
 | Action secondaire (drapeau) | `F` | Clic droit, ou appui long sur la case |
 | Pause | `Espace` / `Échap` | Bouton ❚❚ |
 | Démarrer / rejouer | `Espace` ou `Entrée` | Bouton *Jouer* |
@@ -257,6 +259,48 @@ Les tests revérifient tout cela sur quatre-vingt-dix grilles à chaque exécuti
 Réglages propres au jeu : signalement des bagarres, et barrage automatique des cases
 qu'un chat posé vient d'interdire.
 
+## 🃏 Neon Cells
+
+La réussite **FreeCell**. Les 52 cartes sont visibles dès le début : il n'y a rien à
+deviner, seulement à décider. Huit colonnes, quatre **cellules libres** qui tiennent une
+carte chacune, quatre **fondations** à remplir de l'as au roi.
+
+- Dans les colonnes, on empile en **descendant** et en **alternant les couleurs** :
+  un valet noir sur une dame rouge.
+- Une **suite** déjà rangée se déplace d'un seul geste. Le nombre de cartes
+  transportables n'est pas arbitraire : c'est exactement ce qu'on pourrait déplacer à la
+  main, soit *(cellules libres + 1) × 2^(colonnes vides)*.
+- **Glisser-déposer** à la souris comme au doigt ; une simple **tape** envoie la carte
+  là où elle a le plus de sens — sa fondation d'abord, une colonne ensuite, une cellule
+  en dernier recours.
+- `U` annule, `R` redonne la même donne, `I` demande un indice.
+
+Les cartes qui ne peuvent plus servir à personne **montent seules** aux fondations (un
+as, ou un deux dont les deux couleurs opposées sont déjà rangées). C'est un réglage,
+désactivable pour qui préfère tout faire à la main.
+
+| Mode | Cellules libres | Ce qui change |
+|---|---|---|
+| Facile | 4 | La réussite d'origine |
+| Normal | 3 | Une case de manœuvre en moins, prime de 40 % |
+| Difficile | 2 | Chaque carte posée coûte cher, prime de 100 % |
+| **Libre** | 4 | Sans classement |
+
+Une carte montée rapporte 12 points. Terminer une donne en rapporte 250, plus un point
+par seconde gagnée sur cinq minutes — et c'est cette prime de fin que le coefficient de
+difficulté multiplie. Un indice en coûte 40.
+
+**Aucune donne insoluble n'arrive sur le tapis.** Le jeu embarque son propre solveur —
+une recherche au meilleur d'abord, guidée par une estimation du chemin restant — et il
+tire des donnes jusqu'à en avoir résolu une. Le même solveur sert deux fois de plus :
+il fournit les indices, et quand une position n'a plus de solution il le dit
+franchement plutôt que de faire perdre son temps au joueur. Les tests reprennent la
+vérification de l'extérieur, en resolvant eux-mêmes chaque donne servie, à quatre, trois
+et deux cellules.
+
+Réglages propres au jeu : montée automatique aux fondations, et éclairage des
+emplacements qui accepteraient la carte tenue.
+
 ## Succès, skins et statistiques
 
 Chaque jeu a ses **succès** — douze chacun — et plusieurs
@@ -295,7 +339,7 @@ src/core/
   sheets.js                   # panneaux succès / skins / stats / réglages, et notifications
   ui.js                       # HUD, panneau central, sélecteur de difficulté, barre d'outils
   loop.js                     # boucle à pas fixe, rendu interpolé, canvas HiDPI
-  input.js                    # clavier (coup par coup et maintien), pointeur, balayage, pavé
+  input.js                    # clavier (coup par coup et maintien), pointeur, balayage, pavé, glisser-déposer
   audio.js                    # bruitages WebAudio
   shell.js                    # charge le jeu demandé et habille la page
   ui.css                      # thèmes et coquille visuelle partagée
@@ -309,8 +353,9 @@ src/games/
   blocks/manifest.js · game.js · blocks.css
   crates/manifest.js · game.js · crates.css
   meow/manifest.js · game.js · meow.css
+  cells/manifest.js · game.js · cells.css
 src/hub/hub.js · hub.css      # le hall
-tests/                        # dix-huit suites de bout en bout (voir plus bas)
+tests/                        # dix-neuf suites de bout en bout (voir plus bas)
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
@@ -327,12 +372,12 @@ au premier chargement, puis effacées.
 
 ## Tests
 
-Dix-huit suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
+Dix-neuf suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
 jeux, appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 
 ```bash
 npm install && npx playwright install chromium
-npm test                        # les dix-huit suites, environ 4 minutes
+npm test                        # les dix-neuf suites, environ 4 minutes
 node tests/run.js mines four    # seulement celles dont le nom correspond
 npm start                       # sert le jeu sur http://127.0.0.1:8123
 ```
@@ -371,15 +416,17 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  huit jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  neuf jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
   52 ms), le Tetris fait descendre sa pièce au rythme du niveau (1100 à 70 ms), le
   casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4 ne
   demandent aucun tick — leur boucle ne sert qu'aux animations —, le démineur s'en
-  sert seulement pour son chronomètre, et ni le pousse-caisses ni Neon Meow n'en ont besoin.
+  sert seulement pour son chronomètre, et ni le pousse-caisses, ni Neon Meow, ni la
+  réussite n'en ont besoin.
 - **Entrées à plusieurs régimes** (`core/input.js`) : coups discrets (une direction, une
   action) pour les jeux au tour par tour ; axe maintenu et position du pointeur pour la
   raquette du casse-briques ; tape sur une case, action secondaire (clic droit ou appui
-  long) et touches propres au jeu pour le démineur. Un seul module, quatre usages.
+  long) et touches propres au jeu pour le démineur ; saisie-déplacement-dépôt, avec
+  capture du pointeur, pour les cartes de la réussite. Un seul module, cinq usages.
 - **File d'entrées** (Snake) : jusqu'à deux directions sont mises en attente, pour que
   les virages serrés ne soient jamais avalés ; les demi-tours sont filtrés.
 - **Sons générés à la volée** en WebAudio (oscillateurs) — aucun fichier audio.
@@ -387,14 +434,14 @@ Points techniques notables :
 - **Garde-fou de chargement** : chaque jeu vérifie que les fichiers du socle ont bien
   défini ce qu'ils devaient, et affiche lequel manque plutôt que d'échouer en silence.
 - `window.__neonSnake`, `window.__neonBricks`, `window.__neon2048`, `window.__neonMines`,
-  `window.__neonFour`, `window.__neonBlocks`, `window.__neonCrates` et `window.__neonMeow`
-  exposent un
+  `window.__neonFour`, `window.__neonBlocks`, `window.__neonCrates`, `window.__neonMeow`
+  et `window.__neonCells` exposent un
   instantané en lecture seule de la partie, et de quoi placer une situation précise :
   c'est le point d'entrée des tests automatisés dans un navigateur.
 
 ## Idées d'évolution
 
-- Un neuvième jeu : Memory, ou un solitaire.
+- Un dixième jeu : Motus, un Memory, ou un Simon.
 - Défi quotidien : une graine déterministe pour que tout le monde joue la même partie
   le même jour.
 - Application installable et hors ligne (manifeste + service worker).

@@ -1,6 +1,7 @@
 /* Socle — entrées : clavier, pointeur, balayage tactile et croix directionnelle.
-   Deux usages coexistent : les coups discrets (une direction, une action) et le
-   maintien continu, dont un jeu de raquette a besoin. */
+   Trois usages coexistent : les coups discrets (une direction, une action), le
+   maintien continu dont un jeu de raquette a besoin, et la saisie-déplacement-
+   dépôt qu'attend un jeu de cartes ou de plateau. */
 window.Core = window.Core || {};
 
 Core.attachInput = function (options) {
@@ -22,6 +23,10 @@ Core.attachInput = function (options) {
   var onPointer = options.onPointer || null;
   var onTap = options.onTap || null;             // clic ou tape brève sur le plateau
   var onSecondary = options.onSecondary || null; // clic droit ou appui long
+  // Saisie-déplacement-dépôt : onDragStart peut refuser en renvoyant false.
+  var onDragStart = options.onDragStart || null;
+  var onDragMove = options.onDragMove || null;
+  var onDragEnd = options.onDragEnd || null;
   var extraKeys = options.keys || {};            // touches propres au jeu
   var swipeEnabled = options.swipe !== false;
   var LONG_PRESS_MS = 420;
@@ -85,6 +90,7 @@ Core.attachInput = function (options) {
 
     var longPressTimer = null;
     var longPressed = false;
+    var dragging = false;
 
     function cancelLongPress() {
       if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
@@ -95,6 +101,13 @@ Core.attachInput = function (options) {
       longPressed = false;
       onInteract();
       if (onPointer && !blocked()) { onPointer(ratio(e), true); }
+      if (onDragStart && !blocked()) {
+        dragging = onDragStart(ratio(e)) !== false;
+        // La capture garde le suivi même si le doigt sort du plateau.
+        if (dragging && canvas.setPointerCapture) {
+          try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* sans capture */ }
+        }
+      }
       if (onSecondary) {
         // Appui long : l'équivalent tactile du clic droit.
         var pos = ratio(e);
@@ -111,6 +124,14 @@ Core.attachInput = function (options) {
       canvas.addEventListener('contextmenu', function (e) {
         e.preventDefault();
         if (!blocked()) { onSecondary(ratio(e)); }
+      });
+    }
+
+    if (onDragMove) {
+      canvas.addEventListener('pointermove', function (e) {
+        if (!dragging) { return; }
+        e.preventDefault();
+        onDragMove(ratio(e));
       });
     }
 
@@ -132,7 +153,19 @@ Core.attachInput = function (options) {
       });
     });
 
+    function endDrag(e, dropped) {
+      if (!dragging) { return; }
+      dragging = false;
+      if (onDragEnd) { onDragEnd(dropped ? ratio(e) : null); }
+    }
+
+    canvas.addEventListener('pointercancel', function (e) { endDrag(e, false); });
+
+    // Un geste abandonné hors de la page ne doit pas laisser une carte en l'air.
+    window.addEventListener('blur', function () { endDrag(null, false); });
+
     canvas.addEventListener('pointerup', function (e) {
+      endDrag(e, true);
       if (!touchStart) { return; }
       var dx = e.clientX - touchStart.x;
       var dy = e.clientY - touchStart.y;
