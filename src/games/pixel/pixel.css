@@ -1,0 +1,3 @@
+/* Neon Pixel — la grille et ses marges occupent tout le plateau : la croix
+   directionnelle n'a rien à y faire. */
+.dpad { display: none !important; }

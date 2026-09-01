@@ -64,6 +64,12 @@ window.GameRegistry = [
     styles: ['src/games/echo/echo.css']
   },
   {
+    id: 'pixel',
+    meta: ['src/games/pixel/manifest.js'],
+    scripts: ['src/games/pixel/pictures.js', 'src/games/pixel/game.js'],
+    styles: ['src/games/pixel/pixel.css']
+  },
+  {
     id: '2048',
     meta: ['src/games/2048/manifest.js'],
     scripts: ['src/games/2048/game.js'],

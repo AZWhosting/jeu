@@ -3,7 +3,7 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-11-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-12-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
@@ -18,6 +18,7 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🃏 **Neon Cells** | Réussite FreeCell : 52 cartes visibles, aucune donne insoluble servie. |
 | 🔤 **Neon Mots** | Le mot caché en six essais, clavier AZERTY à l'écran. |
 | 🎵 **Neon Echo** | Une séquence à retenir, où le son porte l'information. |
+| 🖼️ **Neon Pixel** | Picross : les chiffres disent tout, et il en sort un dessin. |
 
 Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
 jouées, temps de jeu, points cumulés et succès tous jeux confondus. Il défile quand le
@@ -42,6 +43,7 @@ Tous les jeux partagent les mêmes commandes.
 | Saisir et déposer (cartes) | — | Glisser du doigt ou à la souris ; une tape envoie la carte |
 | Écrire un mot | Lettres, `Entrée`, `Retour` | Clavier AZERTY dessiné sur le plateau |
 | Frapper une dalle | `1` à `6` | Tape sur la dalle |
+| Peindre une ligne | — | Glisse sur la grille ; `X` change de mode, `Z` annule |
 | Action secondaire (drapeau) | `F` | Clic droit, ou appui long sur la case |
 | Pause | `Espace` / `Échap` | Bouton ❚❚ |
 | Démarrer / rejouer | `Espace` ou `Entrée` | Bouton *Jouer* |
@@ -379,6 +381,38 @@ son plancher.
 
 Réglages propres au jeu : symboles sur les dalles, et rythme constant.
 
+## 🖼️ Neon Pixel
+
+Un picross. Les chiffres en marge donnent la longueur des blocs pleins de chaque ligne
+et de chaque colonne ; il n'y a rien à deviner, tout se déduit. On remplit au glissé —
+la première case touchée décide si le trait pose ou retire — et on barre les cases dont
+on a déduit qu'elles sont vides. **Barrer ne coûte rien** : c'est une note du joueur, pas
+une affirmation du jeu. Remplir une case qui devait rester vide, en revanche, coûte une
+vie.
+
+| Mode | Grille | Dessins | Vies |
+|---|---|---|---|
+| Facile | 5 × 5 | 8 | 5 |
+| Normal | 10 × 10 | 8 | 4 — prime de 50 % |
+| Difficile | 15 × 15 | 4 | 3 — prime de 120 % |
+| **Libre** | 10 × 10 | 8 | les fautes sont comptées, pas sanctionnées |
+
+**Ce qui reste à la fin n'est ni un score ni un état, mais une image** — c'est le seul
+jeu de la plateforme dans ce cas.
+
+**Les vingt dessins sont prouvés déductibles.** La promesse du genre est qu'on n'a jamais
+à supposer : la seule déduction ligne par ligne doit suffire. Les tests embarquent un
+solveur qui ne sait faire *que* ça — il calcule, pour chaque ligne et chaque colonne,
+l'intersection de toutes les dispositions encore compatibles, et recommence jusqu'à
+immobilité. Aucune supposition, aucun retour en arrière. Si la grille se remplit
+entièrement, le dessin est déductible — et sa solution est donc unique, puisque la
+déduction n'a jamais eu à choisir. Deux dessins ont été attrapés ainsi à l'écriture :
+un éclair en diagonale, qui glisse librement faute d'indices distinctifs, et une tasse
+mal formée.
+
+Réglages propres au jeu : barrage automatique des lignes achevées, et grisage des
+indices déjà honorés.
+
 ## Succès, skins et statistiques
 
 Chaque jeu a ses **succès** — douze chacun — et plusieurs
@@ -434,8 +468,9 @@ src/games/
   cells/manifest.js · game.js · cells.css
   mots/manifest.js · game.js · words.js · mots.css
   echo/manifest.js · game.js · echo.css
+  pixel/manifest.js · game.js · pictures.js · pixel.css
 src/hub/hub.js · hub.css      # le hall
-tests/                        # vingt-et-une suites de bout en bout (voir plus bas)
+tests/                        # vingt-deux suites de bout en bout (voir plus bas)
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
@@ -452,12 +487,12 @@ au premier chargement, puis effacées.
 
 ## Tests
 
-Vingt-et-une suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
+Vingt-deux suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
 jeux, appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 
 ```bash
 npm install && npx playwright install chromium
-npm test                        # les vingt-et-une suites, environ 5 minutes
+npm test                        # les vingt-deux suites, environ 5 minutes
 node tests/run.js mines four    # seulement celles dont le nom correspond
 npm start                       # sert le jeu sur http://127.0.0.1:8123
 ```
@@ -472,9 +507,11 @@ s'enclenchait pas si la balle était au repos (casse-briques), des succès non
 cadencé sur la gravité (Tetris), deux tableaux de pousse-caisses insolubles, un générateur de grilles
 qui échouait vingt-six fois sur trente en 7 × 7, une difficulté réécrite au
 chargement qui survivait à une réinitialisation, le cache périmé qui rendait les
-boutons du menu inertes, et le panneau de fin de partie coupé net par le bord du
+boutons du menu inertes, le panneau de fin de partie coupé net par le bord du
 plateau — dont la première correction, en le sortant du plateau, rendait la barre
-d'outils inaccessible pendant la pause.
+d'outils inaccessible pendant la pause —, un dessin de picross qu'aucune déduction ne
+permettait de résoudre, et des compteurs de fautes qui se cumulaient d'un dessin à
+l'autre au lieu de repartir de zéro.
 
 ## Ajouter un jeu
 
@@ -498,7 +535,7 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  onze jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  douze jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
   52 ms), le Tetris fait descendre sa pièce au rythme du niveau (1100 à 70 ms), le
   casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4 ne
   demandent aucun tick — leur boucle ne sert qu'aux animations —, le démineur s'en
@@ -510,7 +547,7 @@ Points techniques notables :
   action) pour les jeux au tour par tour ; axe maintenu et position du pointeur pour la
   raquette du casse-briques ; tape sur une case, action secondaire (clic droit ou appui
   long) et touches propres au jeu pour le démineur ; saisie-déplacement-dépôt, avec
-  capture du pointeur, pour les cartes de la réussite ; saisie de texte pour le jeu de
+  capture du pointeur, pour les cartes de la réussite et les traits du picross ; saisie de texte pour le jeu de
   lettres, où « z » redevient une lettre au lieu d'un pas vers le haut et où Entrée
   valide un mot au lieu de lancer la partie. Un seul module, six usages.
 - **File d'entrées** (Snake) : jusqu'à deux directions sont mises en attente, pour que
@@ -536,7 +573,7 @@ Points techniques notables :
 
 ## Idées d'évolution
 
-- Un douzième jeu : un picross, un Memory, ou un jeu de chemins.
+- Un treizième jeu : un Memory, ou un jeu de chemins à relier.
 - Défi quotidien : une graine déterministe pour que tout le monde joue le même mot ou
   la même donne le même jour.
 - Application installable et hors ligne (manifeste + service worker).
