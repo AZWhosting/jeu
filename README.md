@@ -3,7 +3,7 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-10-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-11-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
@@ -17,6 +17,7 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🐱 **Neon Meow** | Un chat par territoire, jamais deux qui se touchent. Déduction pure. |
 | 🃏 **Neon Cells** | Réussite FreeCell : 52 cartes visibles, aucune donne insoluble servie. |
 | 🔤 **Neon Mots** | Le mot caché en six essais, clavier AZERTY à l'écran. |
+| 🎵 **Neon Echo** | Une séquence à retenir, où le son porte l'information. |
 
 Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
 jouées, temps de jeu, points cumulés et succès tous jeux confondus. Il défile quand le
@@ -40,6 +41,7 @@ Tous les jeux partagent les mêmes commandes.
 | Se déplacer / glisser | Flèches, `WASD` ou `ZQSD` | Balayage sur le plateau, ou croix directionnelle |
 | Saisir et déposer (cartes) | — | Glisser du doigt ou à la souris ; une tape envoie la carte |
 | Écrire un mot | Lettres, `Entrée`, `Retour` | Clavier AZERTY dessiné sur le plateau |
+| Frapper une dalle | `1` à `6` | Tape sur la dalle |
 | Action secondaire (drapeau) | `F` | Clic droit, ou appui long sur la case |
 | Pause | `Espace` / `Échap` | Bouton ❚❚ |
 | Démarrer / rejouer | `Espace` ou `Entrée` | Bouton *Jouer* |
@@ -341,6 +343,42 @@ seulement si les deux lettres coïncident.
 
 Réglages propres au jeu : première lettre offerte, et refus des mots inconnus.
 
+## 🎵 Neon Echo
+
+La machine joue une suite de dalles ; il faut la rendre. Elle s'allonge d'une dalle par
+manche — **en gardant celles d'avant** — et le rythme presse au fil des manches, sans
+jamais passer sous un plancher. Une seule faute suffit.
+
+| Mode | Dalles | Ce qui change |
+|---|---|---|
+| Facile | 4 | Séquence à rendre dans l'ordre, rythme large |
+| Normal | 6 | Deux dalles de plus, et ça presse — prime de 40 % |
+| Difficile | 6 | **La séquence se rend à l'envers** — prime de 100 % |
+| **Libre** | 4 | Une faute ne termine rien : la manche est rejouée |
+
+Le mode difficile n'est pas le même exercice : retenir une suite et la restituer à
+l'envers sollicite une mémoire différente, pas seulement une mémoire plus longue.
+
+**C'est le premier jeu où le son n'est pas décoratif** : chaque dalle a sa note, et les
+six forment une gamme pentatonique mineure — une séquence tirée au hasard ne sonnera
+donc jamais faux. Mais **le son n'est jamais la seule information** : chaque dalle a
+aussi sa couleur, son symbole et son illumination. Le jeu se joue entièrement muet, et
+se joue sans distinguer les couleurs. Les tests vérifient que les six notes, les six
+symboles et les six couleurs sont bien tous distincts.
+
+La démonstration n'est pas une chaîne de `setTimeout` mais une lecture de l'horloge à
+chaque image : une pause, un onglet en arrière-plan ou une image sautée ne peuvent pas
+la désynchroniser. Reprendre après une pause rejoue la manche en entier — sinon il
+faudrait deviner ce qu'on a manqué.
+
+Ce que les tests prouvent : la suite garde son préfixe et gagne exactement une dalle par
+manche ; **une faute à n'importe quelle position** arrête la manche, éprouvé position par
+position ; frapper pendant que la machine joue ne compte pas ; l'attendu du mode
+difficile est l'exact inverse de la séquence ; et le rythme accélère sans jamais franchir
+son plancher.
+
+Réglages propres au jeu : symboles sur les dalles, et rythme constant.
+
 ## Succès, skins et statistiques
 
 Chaque jeu a ses **succès** — douze chacun — et plusieurs
@@ -395,8 +433,9 @@ src/games/
   meow/manifest.js · game.js · meow.css
   cells/manifest.js · game.js · cells.css
   mots/manifest.js · game.js · words.js · mots.css
+  echo/manifest.js · game.js · echo.css
 src/hub/hub.js · hub.css      # le hall
-tests/                        # vingt suites de bout en bout (voir plus bas)
+tests/                        # vingt-et-une suites de bout en bout (voir plus bas)
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
@@ -413,12 +452,12 @@ au premier chargement, puis effacées.
 
 ## Tests
 
-Vingt suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
+Vingt-et-une suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
 jeux, appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 
 ```bash
 npm install && npx playwright install chromium
-npm test                        # les vingt suites, environ 4 minutes
+npm test                        # les vingt-et-une suites, environ 5 minutes
 node tests/run.js mines four    # seulement celles dont le nom correspond
 npm start                       # sert le jeu sur http://127.0.0.1:8123
 ```
@@ -459,12 +498,14 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  dix jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  onze jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
   52 ms), le Tetris fait descendre sa pièce au rythme du niveau (1100 à 70 ms), le
   casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4 ne
   demandent aucun tick — leur boucle ne sert qu'aux animations —, le démineur s'en
   sert seulement pour son chronomètre, et ni le pousse-caisses, ni Neon Meow, ni la
-  réussite, ni le jeu de lettres n'en ont besoin.
+  réussite, ni le jeu de lettres n'en ont besoin. Neon Echo s'en sert autrement encore :
+  sa démonstration se lit dans l'horloge à chaque image plutôt que dans une chaîne de
+  minuteries, si bien qu'une pause ou une image sautée ne la désynchronise pas.
 - **Entrées à plusieurs régimes** (`core/input.js`) : coups discrets (une direction, une
   action) pour les jeux au tour par tour ; axe maintenu et position du pointeur pour la
   raquette du casse-briques ; tape sur une case, action secondaire (clic droit ou appui
@@ -495,7 +536,7 @@ Points techniques notables :
 
 ## Idées d'évolution
 
-- Un onzième jeu : un Memory, un Simon, ou un picross.
+- Un douzième jeu : un picross, un Memory, ou un jeu de chemins.
 - Défi quotidien : une graine déterministe pour que tout le monde joue le même mot ou
   la même donne le même jour.
 - Application installable et hors ligne (manifeste + service worker).
