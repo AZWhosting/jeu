@@ -391,8 +391,10 @@ s'enclenchait pas si la balle était au repos (casse-briques), des succès non
 évalués tant que la balle restait collée à la raquette, un éclair de ligne complétée
 cadencé sur la gravité (Tetris), deux tableaux de pousse-caisses insolubles, un générateur de grilles
 qui échouait vingt-six fois sur trente en 7 × 7, une difficulté réécrite au
-chargement qui survivait à une réinitialisation, et le cache périmé qui rendait les
-boutons du menu inertes.
+chargement qui survivait à une réinitialisation, le cache périmé qui rendait les
+boutons du menu inertes, et le panneau de fin de partie coupé net par le bord du
+plateau — dont la première correction, en le sortant du plateau, rendait la barre
+d'outils inaccessible pendant la pause.
 
 ## Ajouter un jeu
 
@@ -433,6 +435,12 @@ Points techniques notables :
 - **Canvas adapté au `devicePixelRatio`**, redimensionné avec la fenêtre.
 - **Garde-fou de chargement** : chaque jeu vérifie que les fichiers du socle ont bien
   défini ce qu'ils devaient, et affiche lequel manque plutôt que d'échouer en silence.
+- **Panneau borné par un plateau carré** : le panneau central vit à l'intérieur du
+  plateau, dont la hauteur ne dépasse jamais la largeur. Dans sa forme la plus longue —
+  fin de partie, difficultés et tableau de score réunis — il doit donc y tenir. Il
+  défile plutôt que d'être coupé, et il ne sort pas du plateau : la barre d'outils reste
+  cliquable pendant la pause. Quatre tailles d'écran le vérifient à chaque exécution
+  des tests.
 - `window.__neonSnake`, `window.__neonBricks`, `window.__neon2048`, `window.__neonMines`,
   `window.__neonFour`, `window.__neonBlocks`, `window.__neonCrates`, `window.__neonMeow`
   et `window.__neonCells` exposent un

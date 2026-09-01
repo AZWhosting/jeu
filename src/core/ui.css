@@ -172,15 +172,21 @@ canvas {
 
 /* ---- Overlay / panneau ---- */
 
+/* Le panneau est enfermé dans le plateau, qui est carré : réunis, le titre,
+   les difficultés, le tableau de score et les liens du menu peuvent le
+   dépasser. Il défile alors, au lieu d'être coupé net en bas. */
 .overlay {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
   background: rgba(5, 8, 16, 0.72);
   backdrop-filter: blur(6px);
   transition: opacity 0.22s ease;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .overlay[hidden] { display: none; }
@@ -188,10 +194,14 @@ canvas {
 .panel {
   width: 100%;
   max-width: 340px;
+  /* `margin: auto` centre le panneau quand il tient, et le laisse défiler
+     depuis son haut quand il déborde — ce que `align-items` seul ne fait pas. */
+  margin: auto;
+  flex: 0 0 auto;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 22px 20px;
+  padding: 15px 20px;
   text-align: center;
   box-shadow: var(--shadow);
   animation: pop 0.25s ease-out;
@@ -204,19 +214,19 @@ canvas {
 
 .title {
   margin: 0 0 4px;
-  font-size: 32px;
+  font-size: 28px;
   letter-spacing: -0.02em;
 }
 
 .title span { color: var(--mint); }
 
 .subtitle {
-  margin: 0 0 18px;
+  margin: 0 0 12px;
   color: var(--muted);
   font-size: 14px;
 }
 
-.field { margin-bottom: 18px; }
+.field { margin-bottom: 12px; }
 
 .field-label {
   display: block;
@@ -224,7 +234,7 @@ canvas {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .choices {
@@ -237,7 +247,7 @@ canvas {
 .choices-4 { grid-template-columns: repeat(2, 1fr); }
 
 .choice {
-  padding: 9px 4px;
+  padding: 8px 4px;
   font: inherit;
   font-size: 13px;
   color: var(--muted);
@@ -258,14 +268,14 @@ canvas {
 }
 
 .field-hint {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   font-size: 12px;
   color: var(--muted);
   min-height: 1em;
 }
 
 .scoreboard {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
   overflow: hidden;
@@ -274,7 +284,7 @@ canvas {
 .score-line {
   display: flex;
   justify-content: space-between;
-  padding: 9px 12px;
+  padding: 6px 12px;
   font-size: 14px;
 }
 
@@ -284,7 +294,7 @@ canvas {
 
 .cta {
   width: 100%;
-  padding: 13px;
+  padding: 12px;
   font: inherit;
   font-size: 16px;
   font-weight: 700;
@@ -301,8 +311,8 @@ canvas {
 .cta:active { transform: translateY(1px); box-shadow: none; }
 
 .cta-ghost {
-  margin-top: 8px;
-  padding: 10px;
+  margin-top: 6px;
+  padding: 9px;
   font-size: 14px;
   font-weight: 600;
   color: var(--muted);
@@ -315,7 +325,7 @@ canvas {
 .cta-ghost[hidden] { display: none; }
 
 .hint {
-  margin: 12px 0 0;
+  margin: 7px 0 0;
   font-size: 12px;
   color: var(--muted);
 }
@@ -433,15 +443,15 @@ kbd {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
-  margin-top: 14px;
+  margin-top: 8px;
 }
 
 .link {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 9px 2px;
+  gap: 3px;
+  padding: 8px 2px;
   font: inherit;
   font-size: 11px;
   color: var(--muted);
@@ -824,6 +834,18 @@ kbd {
   .title { font-size: 26px; }
   .stat-value { font-size: 22px; }
   .legend { display: none; }
+}
+
+/* Le plateau est carré : sur un écran étroit il est aussi bas que large, et la
+   place manque. Le panneau s'y resserre encore — il ne peut pas sortir du
+   plateau sans recouvrir la barre d'outils, qui doit rester cliquable. */
+@media (max-width: 620px) {
+  .overlay { padding: 8px; }
+  .panel { padding: 13px 16px; }
+  .title { font-size: 24px; }
+  .subtitle { margin-bottom: 10px; font-size: 13px; }
+  .field-hint { font-size: 11px; }
+  .link { font-size: 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

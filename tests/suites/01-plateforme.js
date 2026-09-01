@@ -1,5 +1,32 @@
 'use strict';
 
+/* Mesure, dans la page, ce que le panneau laisse atteindre de lui-même.
+   Le panneau vit dans un plateau carré, donc borné : il doit tenir dedans
+   quand c'est possible, et rester intégralement atteignable sinon. */
+function mesurePanneau() {
+  var o = document.getElementById('overlay');
+  var p = document.getElementById('panel');
+  var cta = document.getElementById('playBtn');
+  var ro = o.getBoundingClientRect(), rp = p.getBoundingClientRect();
+  var rc = cta.getBoundingClientRect();
+  var reste = o.scrollHeight - o.clientHeight;      // ce qu'il reste à défiler
+  return {
+    overlay: Math.round(ro.height),
+    panneau: Math.round(rp.height),
+    depassement: Math.round(rp.bottom - ro.bottom),
+    scrollMax: reste,
+    // Tient tout entier, sans rien à faire défiler.
+    entier: rp.top >= ro.top - 2 && rp.bottom <= ro.bottom + 2,
+    // Rien n'est perdu vers le haut : un panneau centré qui déborde des deux
+    // côtés serait irrattrapable, le défilement ne remonte pas au-dessus de zéro.
+    hautIntact: rp.top >= ro.top - 2,
+    // Le bas se rattrape en faisant défiler jusqu'au bout.
+    basAtteignable: rp.bottom - ro.bottom <= reste + 2,
+    ctaAtteignable: rc.bottom - ro.bottom <= reste + 2 && rc.top >= ro.top - 2,
+    ctaVisibleSansDefiler: rc.bottom <= ro.bottom + 2 && rc.top >= ro.top - 2
+  };
+}
+
 var harness = require('../lib/harness');
 
 module.exports = {
@@ -56,6 +83,57 @@ module.exports = {
     check('une page de jeu, elle, ne défile pas',
           (await jeu.evaluate(function () { return window.scrollY; })) === 0);
     await jeu.close();
+
+    t.section('Le panneau tient dans le plateau');
+    /* Le panneau est enfermé dans un plateau carré, donc plafonné : dans sa
+       forme la plus longue — fin de partie, avec difficultés ET tableau de
+       score — il doit rester entièrement atteignable, sur écran court comme
+       sur grand écran. Il a déjà été rogné net une fois. */
+    var ecrans = [[390, 600], [520, 940], [751, 820], [900, 700]];
+    for (var v = 0; v < ecrans.length; v++) {
+      var vue = { width: ecrans[v][0], height: ecrans[v][1] };
+      var onglet = await h.newPage({ viewport: vue });
+      await onglet.goto(h.url('2048'));
+      await onglet.waitForTimeout(300);
+
+      var m = await onglet.evaluate(mesurePanneau);
+      var tailleMenu = 'panneau ' + m.panneau + 'px dans ' + m.overlay + 'px';
+      check(vue.width + '×' + vue.height + ' : le menu n\'est pas rogné',
+            m.hautIntact && m.basAtteignable, tailleMenu);
+      check(vue.width + '×' + vue.height + ' : le menu tient sans défiler',
+            m.entier, tailleMenu + ', défilement ' + m.scrollMax + 'px');
+
+      // Grille pleine et bloquée : la partie se termine au coup suivant.
+      await onglet.click('#playBtn');
+      await onglet.waitForTimeout(150);
+      await onglet.evaluate(function () {
+        window.__neon2048.setGrid([2,4,2,4, 4,2,4,2, 2,4,2,4, 4,2,4,2]);
+      });
+      await onglet.keyboard.press('ArrowRight');
+      await onglet.waitForTimeout(600);
+
+      var fin = await onglet.evaluate(mesurePanneau);
+      var taille = 'panneau ' + fin.panneau + 'px dans ' + fin.overlay +
+                   'px, dépassement ' + fin.depassement + 'px, défilement ' + fin.scrollMax + 'px';
+      check(vue.width + '×' + vue.height + ' : le panneau de fin n\'est pas rogné',
+            fin.hautIntact && fin.basAtteignable, taille);
+      check(vue.width + '×' + vue.height + ' : le bouton de reprise est atteignable',
+            fin.ctaAtteignable, taille);
+      // Sur un plateau assez haut, il ne doit même pas falloir défiler.
+      if (fin.overlay >= 480) {
+        check(vue.width + '×' + vue.height + ' : le panneau de fin tient sans défiler',
+              fin.entier, taille);
+      }
+      // La barre d'outils reste utilisable pendant que le panneau est affiché.
+      var barre = await onglet.evaluate(function () {
+        var b = document.getElementById('restartBtn').getBoundingClientRect();
+        var dessus = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+        return dessus ? dessus.id || dessus.className : 'rien';
+      });
+      check(vue.width + '×' + vue.height + ' : la barre d\'outils reste cliquable',
+            barre === 'restartBtn', 'au-dessus du bouton : ' + barre);
+      await onglet.close();
+    }
 
     console.log('\n[Snake via la coquille]');
       await page.click('.game-card:has-text("Snake")');
