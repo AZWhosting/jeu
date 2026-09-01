@@ -6,7 +6,7 @@ appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 ```bash
 npm install          # récupère Playwright
 npx playwright install chromium
-npm test             # les dix-neuf suites
+npm test             # les vingt suites
 node tests/run.js snake four    # seulement celles dont le nom contient ça
 ```
 
@@ -31,7 +31,7 @@ harnais fournit `h.page`, `h.url('snake')`, `h.hub()`, `h.fileUrl('snake')`,
 
 Chaque jeu expose une sonde en lecture seule — `window.__neonSnake`,
 `__neonBricks`, `__neon2048`, `__neonMines`, `__neonFour`, `__neonBlocks`,
-`__neonCrates`, `__neonMeow`, `__neonCells` — qui donne un
+`__neonCrates`, `__neonMeow`, `__neonCells`, `__neonMots` — qui donne un
 instantané de la partie et, pour certains, de quoi poser une situation précise
 (placer une grille, planter des mines, lancer la balle, distribuer une donne
 connue). C'est ce qui permet de
@@ -44,6 +44,11 @@ Cells fait de même avec ses donnes : la suite en fait servir huit, à quatre, t
 et deux cellules libres, et les résout toutes depuis la position servie — elle
 vérifie aussi que le solveur sait dire non, sur une position construite pour être
 sans issue.
+
+Neon Mots met sa règle centrale à nu : `__neonMots.mark(proposition, solution)` est la
+fonction de marquage elle-même, et la suite la fait tourner sur **toutes les paires de
+mots des trois listes**, soit plus de 359 000 marquages, pour vérifier qu'une lettre
+répétée n'est jamais signalée plus de fois qu'elle n'apparaît.
 
 Le glisser-déposer se teste avec de vrais gestes : la suite de Neon Cells lit la
 géométrie du plateau (`__neonCells.geometry()`), en déduit les coordonnées d'une

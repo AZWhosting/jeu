@@ -3,7 +3,7 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-9-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-10-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
@@ -16,6 +16,7 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 📦 **Neon Crates** | Pousse-caisses : douze tableaux à résoudre, annulation à volonté. |
 | 🐱 **Neon Meow** | Un chat par territoire, jamais deux qui se touchent. Déduction pure. |
 | 🃏 **Neon Cells** | Réussite FreeCell : 52 cartes visibles, aucune donne insoluble servie. |
+| 🔤 **Neon Mots** | Le mot caché en six essais, clavier AZERTY à l'écran. |
 
 Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
 jouées, temps de jeu, points cumulés et succès tous jeux confondus. Il défile quand le
@@ -38,6 +39,7 @@ Tous les jeux partagent les mêmes commandes.
 |---|---|---|
 | Se déplacer / glisser | Flèches, `WASD` ou `ZQSD` | Balayage sur le plateau, ou croix directionnelle |
 | Saisir et déposer (cartes) | — | Glisser du doigt ou à la souris ; une tape envoie la carte |
+| Écrire un mot | Lettres, `Entrée`, `Retour` | Clavier AZERTY dessiné sur le plateau |
 | Action secondaire (drapeau) | `F` | Clic droit, ou appui long sur la case |
 | Pause | `Espace` / `Échap` | Bouton ❚❚ |
 | Démarrer / rejouer | `Espace` ou `Entrée` | Bouton *Jouer* |
@@ -301,6 +303,44 @@ et deux cellules.
 Réglages propres au jeu : montée automatique aux fondations, et éclairage des
 emplacements qui accepteraient la carte tenue.
 
+## 🔤 Neon Mots
+
+Un mot est caché ; chaque proposition dit, lettre par lettre, ce qu'elle vaut :
+**bien placée**, **présente mais ailleurs**, ou **absente**. Le clavier AZERTY dessiné
+sous la grille garde la trace de tout ce qu'on a appris — et l'état d'une touche ne
+redescend jamais. On écrit au clavier de la machine comme au doigt sur celui de
+l'écran.
+
+| Mode | Mot | Essais |
+|---|---|---|
+| Facile | 4 lettres | 6 |
+| Normal | 5 lettres | 6 — prime de 30 % |
+| Difficile | 6 lettres | 5 — prime de 80 % |
+| **Libre** | 5 lettres | 8, et un mot manqué n'arrête pas la partie |
+
+Comme au *Motus*, **la première lettre est offerte** : elle est déjà écrite et ne
+s'efface pas. C'est un réglage, et le succès *Sans cadeau* attend ceux qui le coupent.
+
+Un mot trouvé rapporte 30 points par lettre, plus 40 par essai resté inutilisé, le tout
+multiplié par la prime de difficulté. Manquer un mot arrête la partie — sauf en mode
+libre.
+
+**La liste est écrite à la main** : un millier de noms, adjectifs et infinitifs
+courants, en majuscules et sans accent, ni pluriels ni conjugaisons ni noms propres.
+Elle sert deux fois — elle fournit les mots à trouver, et elle décide de ce qu'on
+accepte comme proposition. Elle est forcément incomplète : le réglage *Refuser les mots
+inconnus* existe pour le jour où elle recale un vrai mot.
+
+**Ce qui est prouvé, en revanche, c'est le marquage.** C'est là que les jeux de ce genre
+se trompent, sur les lettres répétées : proposer `ELLES` quand la solution est `ELEVE`
+ne doit signaler que deux E, pas trois. Les tests vérifient, sur **toutes les paires de
+mots des trois listes — plus de 359 000 marquages** — que pour chaque lettre le nombre
+de cases signalées vaut exactement le minimum entre ce que la proposition en contient et
+ce que la solution en contient, et qu'une case est marquée « bien placée » si et
+seulement si les deux lettres coïncident.
+
+Réglages propres au jeu : première lettre offerte, et refus des mots inconnus.
+
 ## Succès, skins et statistiques
 
 Chaque jeu a ses **succès** — douze chacun — et plusieurs
@@ -339,7 +379,7 @@ src/core/
   sheets.js                   # panneaux succès / skins / stats / réglages, et notifications
   ui.js                       # HUD, panneau central, sélecteur de difficulté, barre d'outils
   loop.js                     # boucle à pas fixe, rendu interpolé, canvas HiDPI
-  input.js                    # clavier (coup par coup et maintien), pointeur, balayage, pavé, glisser-déposer
+  input.js                    # clavier (coups, maintien, saisie de texte), pointeur, balayage, pavé, glisser-déposer
   audio.js                    # bruitages WebAudio
   shell.js                    # charge le jeu demandé et habille la page
   ui.css                      # thèmes et coquille visuelle partagée
@@ -354,8 +394,9 @@ src/games/
   crates/manifest.js · game.js · crates.css
   meow/manifest.js · game.js · meow.css
   cells/manifest.js · game.js · cells.css
+  mots/manifest.js · game.js · words.js · mots.css
 src/hub/hub.js · hub.css      # le hall
-tests/                        # dix-neuf suites de bout en bout (voir plus bas)
+tests/                        # vingt suites de bout en bout (voir plus bas)
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
@@ -372,12 +413,12 @@ au premier chargement, puis effacées.
 
 ## Tests
 
-Dix-neuf suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
+Vingt suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
 jeux, appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 
 ```bash
 npm install && npx playwright install chromium
-npm test                        # les dix-neuf suites, environ 4 minutes
+npm test                        # les vingt suites, environ 4 minutes
 node tests/run.js mines four    # seulement celles dont le nom correspond
 npm start                       # sert le jeu sur http://127.0.0.1:8123
 ```
@@ -418,17 +459,19 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  neuf jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  dix jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
   52 ms), le Tetris fait descendre sa pièce au rythme du niveau (1100 à 70 ms), le
   casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4 ne
   demandent aucun tick — leur boucle ne sert qu'aux animations —, le démineur s'en
   sert seulement pour son chronomètre, et ni le pousse-caisses, ni Neon Meow, ni la
-  réussite n'en ont besoin.
+  réussite, ni le jeu de lettres n'en ont besoin.
 - **Entrées à plusieurs régimes** (`core/input.js`) : coups discrets (une direction, une
   action) pour les jeux au tour par tour ; axe maintenu et position du pointeur pour la
   raquette du casse-briques ; tape sur une case, action secondaire (clic droit ou appui
   long) et touches propres au jeu pour le démineur ; saisie-déplacement-dépôt, avec
-  capture du pointeur, pour les cartes de la réussite. Un seul module, cinq usages.
+  capture du pointeur, pour les cartes de la réussite ; saisie de texte pour le jeu de
+  lettres, où « z » redevient une lettre au lieu d'un pas vers le haut et où Entrée
+  valide un mot au lieu de lancer la partie. Un seul module, six usages.
 - **File d'entrées** (Snake) : jusqu'à deux directions sont mises en attente, pour que
   les virages serrés ne soient jamais avalés ; les demi-tours sont filtrés.
 - **Sons générés à la volée** en WebAudio (oscillateurs) — aucun fichier audio.
@@ -452,9 +495,9 @@ Points techniques notables :
 
 ## Idées d'évolution
 
-- Un dixième jeu : Motus, un Memory, ou un Simon.
-- Défi quotidien : une graine déterministe pour que tout le monde joue la même partie
-  le même jour.
+- Un onzième jeu : un Memory, un Simon, ou un picross.
+- Défi quotidien : une graine déterministe pour que tout le monde joue le même mot ou
+  la même donne le même jour.
 - Application installable et hors ligne (manifeste + service worker).
 - Succès transversaux à la plateforme, et un niveau de profil commun.
 - Manette (Gamepad API) et retour haptique sur mobile.

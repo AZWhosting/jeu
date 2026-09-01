@@ -1,7 +1,7 @@
 /* Socle — entrées : clavier, pointeur, balayage tactile et croix directionnelle.
-   Trois usages coexistent : les coups discrets (une direction, une action), le
-   maintien continu dont un jeu de raquette a besoin, et la saisie-déplacement-
-   dépôt qu'attend un jeu de cartes ou de plateau. */
+   Quatre usages coexistent : les coups discrets (une direction, une action), le
+   maintien continu dont un jeu de raquette a besoin, la saisie-déplacement-
+   dépôt qu'attend un jeu de cartes, et la saisie de texte d'un jeu de lettres. */
 window.Core = window.Core || {};
 
 Core.attachInput = function (options) {
@@ -28,6 +28,9 @@ Core.attachInput = function (options) {
   var onDragMove = options.onDragMove || null;
   var onDragEnd = options.onDragEnd || null;
   var extraKeys = options.keys || {};            // touches propres au jeu
+  /* Saisie de texte : les lettres du clavier ne sont plus des directions. Le
+     jeu reçoit la lettre en majuscule, '\n' pour Entrée et '\b' pour Retour. */
+  var onText = options.onText || null;
   var swipeEnabled = options.swipe !== false;
   var LONG_PRESS_MS = 420;
   var TAP_SLOP = 10;                             // px : au-delà, ce n'est plus une tape
@@ -49,6 +52,22 @@ Core.attachInput = function (options) {
 
   document.addEventListener('keydown', function (e) {
     if (blocked()) { return; }
+
+    /* Un jeu de lettres tape des mots : « z » y est une lettre, pas un pas vers
+       le haut, et Entrée valide le mot au lieu de lancer la partie. Échap et
+       Espace gardent leur rôle, eux ne s'écrivent pas. */
+    if (onText) {
+      if (e.key === 'Escape') { onEscape(); return; }
+      if (e.ctrlKey || e.metaKey || e.altKey) { return; }
+      if (e.key === 'Enter') { e.preventDefault(); onInteract(); onText('\n'); return; }
+      if (e.key === 'Backspace') { e.preventDefault(); onInteract(); onText('\b'); return; }
+      if (/^[a-zA-Z]$/.test(e.key)) {
+        e.preventDefault(); onInteract(); onText(e.key.toUpperCase()); return;
+      }
+      if (e.key === ' ') { e.preventDefault(); onInteract(); onAction(); }
+      return;
+    }
+
     var name = KEYS[e.key] ? e.key : String(e.key).toLowerCase();
     var move = KEYS[name];
     if (move) {

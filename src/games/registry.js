@@ -52,6 +52,12 @@ window.GameRegistry = [
     styles: ['src/games/cells/cells.css']
   },
   {
+    id: 'mots',
+    meta: ['src/games/mots/manifest.js'],
+    scripts: ['src/games/mots/words.js', 'src/games/mots/game.js'],
+    styles: ['src/games/mots/mots.css']
+  },
+  {
     id: '2048',
     meta: ['src/games/2048/manifest.js'],
     scripts: ['src/games/2048/game.js'],
