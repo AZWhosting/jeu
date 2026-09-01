@@ -9,21 +9,22 @@ function mesurePanneau() {
   var cta = document.getElementById('playBtn');
   var ro = o.getBoundingClientRect(), rp = p.getBoundingClientRect();
   var rc = cta.getBoundingClientRect();
-  var reste = o.scrollHeight - o.clientHeight;      // ce qu'il reste à défiler
+  var reste = p.scrollHeight - p.clientHeight;      // ce qu'il reste à défiler
   return {
     overlay: Math.round(ro.height),
     panneau: Math.round(rp.height),
+    contenu: p.scrollHeight,
     depassement: Math.round(rp.bottom - ro.bottom),
     scrollMax: reste,
-    // Tient tout entier, sans rien à faire défiler.
-    entier: rp.top >= ro.top - 2 && rp.bottom <= ro.bottom + 2,
-    // Rien n'est perdu vers le haut : un panneau centré qui déborde des deux
-    // côtés serait irrattrapable, le défilement ne remonte pas au-dessus de zéro.
-    hautIntact: rp.top >= ro.top - 2,
-    // Le bas se rattrape en faisant défiler jusqu'au bout.
-    basAtteignable: rp.bottom - ro.bottom <= reste + 2,
-    ctaAtteignable: rc.bottom - ro.bottom <= reste + 2 && rc.top >= ro.top - 2,
-    ctaVisibleSansDefiler: rc.bottom <= ro.bottom + 2 && rc.top >= ro.top - 2
+    // L'invariant : le panneau ne sort jamais du plateau, quelles que soient
+    // les polices du visiteur. Ce que le plateau ne peut pas montrer, le
+    // panneau le fait défiler chez lui.
+    borne: rp.top >= ro.top - 2 && rp.bottom <= ro.bottom + 2,
+    // Tout tient sans avoir à faire défiler quoi que ce soit.
+    entier: reste <= 2,
+    // Le bouton principal est visible, ou le devient en défilant.
+    ctaAtteignable: rc.top >= rp.top - 2 &&
+                    (rc.bottom <= rp.bottom + 2 || rc.bottom - rp.bottom <= reste + 2)
   };
 }
 
@@ -98,8 +99,8 @@ module.exports = {
 
       var m = await onglet.evaluate(mesurePanneau);
       var tailleMenu = 'panneau ' + m.panneau + 'px dans ' + m.overlay + 'px';
-      check(vue.width + '×' + vue.height + ' : le menu n\'est pas rogné',
-            m.hautIntact && m.basAtteignable, tailleMenu);
+      check(vue.width + '×' + vue.height + ' : le menu ne sort pas du plateau',
+            m.borne, tailleMenu);
       check(vue.width + '×' + vue.height + ' : le menu tient sans défiler',
             m.entier, tailleMenu + ', défilement ' + m.scrollMax + 'px');
 
@@ -114,9 +115,9 @@ module.exports = {
 
       var fin = await onglet.evaluate(mesurePanneau);
       var taille = 'panneau ' + fin.panneau + 'px dans ' + fin.overlay +
-                   'px, dépassement ' + fin.depassement + 'px, défilement ' + fin.scrollMax + 'px';
-      check(vue.width + '×' + vue.height + ' : le panneau de fin n\'est pas rogné',
-            fin.hautIntact && fin.basAtteignable, taille);
+                   'px, contenu ' + fin.contenu + 'px, défilement ' + fin.scrollMax + 'px';
+      check(vue.width + '×' + vue.height + ' : le panneau de fin ne sort pas du plateau',
+            fin.borne, taille);
       check(vue.width + '×' + vue.height + ' : le bouton de reprise est atteignable',
             fin.ctaAtteignable, taille);
       // Sur un plateau assez haut, il ne doit même pas falloir défiler.
@@ -124,6 +125,18 @@ module.exports = {
         check(vue.width + '×' + vue.height + ' : le panneau de fin tient sans défiler',
               fin.entier, taille);
       }
+
+      /* Les polices du visiteur ne sont pas les nôtres : on refait la mesure
+         avec un texte volontairement plus haut, pour que « ça tient » ne
+         dépende pas du rendu de cette machine. */
+      await onglet.addStyleTag({ content:
+        '.panel, .panel * { line-height: 1.9 !important; letter-spacing: 0.3px !important; }' });
+      await onglet.waitForTimeout(120);
+      var gonfle = await onglet.evaluate(mesurePanneau);
+      check(vue.width + '×' + vue.height + ' : même avec un texte plus haut, rien ne déborde',
+            gonfle.borne && gonfle.ctaAtteignable,
+            'panneau ' + gonfle.panneau + 'px dans ' + gonfle.overlay +
+            'px, contenu ' + gonfle.contenu + 'px');
       // La barre d'outils reste utilisable pendant que le panneau est affiché.
       var barre = await onglet.evaluate(function () {
         var b = document.getElementById('restartBtn').getBoundingClientRect();

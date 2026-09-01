@@ -437,10 +437,13 @@ Points techniques notables :
   défini ce qu'ils devaient, et affiche lequel manque plutôt que d'échouer en silence.
 - **Panneau borné par un plateau carré** : le panneau central vit à l'intérieur du
   plateau, dont la hauteur ne dépasse jamais la largeur. Dans sa forme la plus longue —
-  fin de partie, difficultés et tableau de score réunis — il doit donc y tenir. Il
-  défile plutôt que d'être coupé, et il ne sort pas du plateau : la barre d'outils reste
-  cliquable pendant la pause. Quatre tailles d'écran le vérifient à chaque exécution
-  des tests.
+  fin de partie, difficultés et tableau de score réunis — la place peut manquer. Plutôt
+  que d'être tranché par le bord du plateau, il s'y arrête (`max-height: 100%`) et
+  défile chez lui, bordure et coins visibles. C'est une garantie de structure et non un
+  ajustement au pixel : la hauteur d'un texte dépend des polices du visiteur, pas de ce
+  qu'on a mesuré. Il ne sort jamais du plateau non plus, sinon la barre d'outils
+  deviendrait inutilisable pendant la pause. Les tests le vérifient sur quatre tailles
+  d'écran, et une fois de plus avec un texte volontairement plus haut.
 - `window.__neonSnake`, `window.__neonBricks`, `window.__neon2048`, `window.__neonMines`,
   `window.__neonFour`, `window.__neonBlocks`, `window.__neonCrates`, `window.__neonMeow`
   et `window.__neonCells` exposent un

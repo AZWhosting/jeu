@@ -198,6 +198,13 @@ canvas {
      depuis son haut quand il déborde — ce que `align-items` seul ne fait pas. */
   margin: auto;
   flex: 0 0 auto;
+  /* Le panneau ne dépasse jamais du plateau : plutôt que d'être tranché par
+     son bord, il s'arrête net avec sa bordure et défile à l'intérieur. C'est
+     une garantie de structure, pas un calcul de hauteur — la place que prend
+     un texte dépend des polices du visiteur, pas de ce qu'on a mesuré ici. */
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -329,6 +336,11 @@ canvas {
   font-size: 12px;
   color: var(--muted);
 }
+
+/* Fin de partie : difficultés et tableau de score cohabitent, c'est la forme
+   la plus longue du panneau. L'aide clavier, qu'on connaît déjà à ce stade,
+   s'efface. */
+.panel:has(#scoreboard:not([hidden])) .hint { display: none; }
 
 kbd {
   font: inherit;
