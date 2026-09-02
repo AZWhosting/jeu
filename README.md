@@ -21,9 +21,13 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🖼️ **Neon Pixel** | Picross : les chiffres disent tout, et il en sort un dessin. |
 | 🗼 **Neon Tower** | Monter ou encaisser : le seul jeu où le hasard décide — et il est affiché. |
 
-Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
-jouées, temps de jeu, points cumulés et succès tous jeux confondus. Il défile quand le
-catalogue dépasse l'écran, et passe à deux colonnes dès qu'il y a la place. Chaque jeu
+Le **hall** (`index.html`) liste les jeux **dans l'ordre du tableau ci-dessus** — celui
+de leur arrivée — et résume la progression commune : parties jouées, temps de jeu, points
+cumulés et succès tous jeux confondus. Il défile quand le catalogue dépasse l'écran, et
+passe à deux colonnes dès qu'il y a la place ; quand les jeux sont en nombre impair, le
+dernier prend toute la largeur plutôt que de laisser un demi-rang vide. Les tests
+confrontent l'ordre du hall à celui de ce tableau : ils ont attrapé Neon 2048 échoué en
+fin de liste, poussé là par chaque jeu inscrit avant lui. Chaque jeu
 s'ouvre dans la même coquille (`jeu.html?id=…`) et hérite des mêmes panneaux :
 succès, skins, statistiques et réglages.
 
@@ -571,7 +575,9 @@ l'autre au lieu de repartir de zéro.
 
 1. Créer `src/games/<id>/manifest.js` (nom, difficultés, réglages, succès, skins,
    règles écrites, statistiques) et `game.js` (règles jouées et rendu).
-2. L'inscrire dans `src/games/registry.js`.
+2. L'inscrire **à la fin** de `src/games/registry.js` — c'est lui qui donne l'ordre du
+   hall — et ajouter sa ligne au tableau en tête de ce README, que les tests confrontent
+   à cet ordre.
 3. Ajouter son manifeste au hall dans `index.html`.
 
 Rien d'autre : le hall, les panneaux et la persistance suivent. Un jeu qui ne déclare

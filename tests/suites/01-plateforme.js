@@ -28,6 +28,8 @@ function mesurePanneau() {
   };
 }
 
+var fs = require('fs');
+var path = require('path');
 var harness = require('../lib/harness');
 
 module.exports = {
@@ -106,6 +108,53 @@ module.exports = {
     check('une page de jeu, elle, ne défile pas',
           (await jeu.evaluate(function () { return window.scrollY; })) === 0);
     await jeu.close();
+
+    t.section('L\'ordre du catalogue');
+    /* Chaque jeu ajouté s'inscrivait avant le dernier du registre, si bien que
+       Neon 2048 avait dérivé jusqu'au bout de la liste. Le README, lui, gardait
+       le bon ordre : on confronte les deux plutôt que d'attendre qu'on le
+       remarque à l'œil. */
+    var noms = await page.$$eval('.game-card .game-name', function (els) {
+      return els.map(function (e) { return e.textContent.trim(); });
+    });
+    var readme = fs.readFileSync(path.join(harness.ROOT, 'README.md'), 'utf8');
+    var attendus = [];
+    readme.split('\n').some(function (ligne) {
+      var m = ligne.match(/^\|[^|]*\*\*(Neon [^*]+)\*\*\s*\|/);
+      if (m) { attendus.push(m[1].trim()); return false; }
+      return attendus.length > 0;      // le tableau fini, on arrête
+    });
+    check('le README décrit bien les ' + noms.length + ' jeux', attendus.length === noms.length,
+          attendus.length + ' lignes de tableau pour ' + noms.length + ' cartes');
+    check('le hall les présente dans le même ordre que le README',
+          noms.join(' · ') === attendus.join(' · '),
+          noms.join(' · ') + '\n           README : ' + attendus.join(' · '));
+
+    // Nombre impair de jeux : le dernier ne doit pas laisser un demi-rang vide.
+    var large = await h.newPage({ viewport: { width: 1100, height: 1100 } });
+    await large.goto(h.hub());
+    await large.waitForTimeout(300);
+    var rangs = await large.evaluate(function () {
+      var nav = document.getElementById('games');
+      var cartes = Array.prototype.map.call(nav.children, function (c) {
+        var r = c.getBoundingClientRect();
+        return { y: Math.round(r.top), w: Math.round(r.width) };
+      });
+      var dernier = cartes[cartes.length - 1];
+      var seul = cartes.filter(function (c) { return c.y === dernier.y; }).length === 1;
+      return {
+        colonnes: getComputedStyle(nav).gridTemplateColumns.split(' ').length,
+        largeurNav: Math.round(nav.getBoundingClientRect().width),
+        dernierSeul: seul,
+        dernierLarge: dernier.w,
+        cartes: cartes.length
+      };
+    });
+    check('le hall passe bien à deux colonnes sur grand écran', rangs.colonnes === 2, rangs.colonnes);
+    check('la dernière rangée ne laisse pas de vide',
+          !rangs.dernierSeul || rangs.dernierLarge > rangs.largeurNav * 0.9,
+          rangs.cartes + ' jeux, dernière carte ' + rangs.dernierLarge + 'px sur ' + rangs.largeurNav);
+    await large.close();
 
     t.section('Les règles, déclarées et atteignables');
     /* Chaque jeu doit savoir expliquer ses propres règles : c'est le manifeste

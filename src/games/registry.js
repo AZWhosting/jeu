@@ -1,4 +1,7 @@
-/* Catalogue des jeux de la plateforme.
+/* Catalogue des jeux de la plateforme, dans l'ordre où le hall les présente —
+   celui de leur arrivée. Un nouveau jeu se range donc à la fin, et pas avant le
+   dernier inscrit : c'est ainsi que Neon 2048 avait dérivé jusqu'au bout de la
+   liste, échoué seul sur sa rangée.
    `meta` décrit le jeu (manifeste et reprise de données) : le hall se contente
    de ces fichiers. `scripts` et `styles` le font tourner : seule la coquille
    de jeu les charge. */
@@ -14,6 +17,12 @@ window.GameRegistry = [
     meta: ['src/games/bricks/manifest.js'],
     scripts: ['src/games/bricks/game.js'],
     styles: ['src/games/bricks/bricks.css']
+  },
+  {
+    id: '2048',
+    meta: ['src/games/2048/manifest.js'],
+    scripts: ['src/games/2048/game.js'],
+    styles: ['src/games/2048/2048.css']
   },
   {
     id: 'mines',
@@ -74,11 +83,5 @@ window.GameRegistry = [
     meta: ['src/games/tower/manifest.js'],
     scripts: ['src/games/tower/game.js'],
     styles: ['src/games/tower/tower.css']
-  },
-  {
-    id: '2048',
-    meta: ['src/games/2048/manifest.js'],
-    scripts: ['src/games/2048/game.js'],
-    styles: ['src/games/2048/2048.css']
   }
 ];

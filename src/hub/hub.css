@@ -146,6 +146,11 @@ body.page-hub {
 @media (min-width: 720px) {
   .hall { max-width: 760px; }
   .games { display: grid; grid-template-columns: repeat(2, 1fr); }
+
+  /* Le catalogue compte parfois un nombre impair de jeux : le dernier se
+     retrouve alors seul, avec un demi-rang vide à côté de lui. Il prend toute
+     la largeur plutôt que de laisser ce trou. */
+  .games > .game-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
 
 @media (max-width: 380px) {
