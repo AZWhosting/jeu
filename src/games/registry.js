@@ -83,5 +83,17 @@ window.GameRegistry = [
     meta: ['src/games/tower/manifest.js'],
     scripts: ['src/games/tower/game.js'],
     styles: ['src/games/tower/tower.css']
+  },
+  {
+    id: 'klondike',
+    meta: ['src/games/klondike/manifest.js'],
+    scripts: ['src/games/klondike/game.js'],
+    styles: ['src/games/klondike/klondike.css']
+  },
+  {
+    id: 'spider',
+    meta: ['src/games/spider/manifest.js'],
+    scripts: ['src/games/spider/game.js'],
+    styles: ['src/games/spider/spider.css']
   }
 ];

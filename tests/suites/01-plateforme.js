@@ -46,12 +46,12 @@ module.exports = {
       await page.goto(h.hub());
       await page.waitForTimeout(300);
       const cards = await page.$$eval('.game-card', els => els.map(e => ({ name: e.querySelector('.game-name').textContent, href: e.getAttribute('href') })));
-      check('les treize jeux sont listés', cards.length === 13, cards.map(c => c.name).join(' / '));
+      check('les quinze jeux sont listés', cards.length === 15, cards.map(c => c.name).join(' / '));
       check('les liens pointent vers la coquille', cards.every(c => /jeu\.html\?id=/.test(c.href)), cards.map(c => c.href).join(' '));
       const profile = await page.$$eval('#profile .tile-value', e => e.map(x => x.textContent));
       check('profil commun affiché', profile.length === 4, profile.join(' | '));
     check('l\'accroche compte les jeux elle-même',
-          /^13 jeux/.test(await page.textContent('.hall-tagline')),
+          /^15 jeux/.test(await page.textContent('.hall-tagline')),
           await page.textContent('.hall-tagline'));
       await page.screenshot({ path: h.shot('p1-hall') });
 

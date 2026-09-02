@@ -14,6 +14,7 @@
     'src/core/input.js': window.Core && Core.attachInput,
     'src/core/audio.js': window.Core && Core.createAudio,
     'src/core/ui.js': window.Core && Core.createHud,
+    'src/core/cards.js': window.Core && Core.Cards,
     'src/core/shell.js': window.Core && Core.Shell,
     'src/games/cells/manifest.js': manifest
   };
@@ -28,6 +29,7 @@
     return;
   }
 
+  var Cards = Core.Cards;
   var progress = Core.createProgress(manifest);
   var audio = Core.createAudio(function () { return !!progress.getSetting('sound'); });
   var sheets, loop, ctx, hud, panel, toolbar, picker;
@@ -944,58 +946,19 @@
   }
 
   function drawSlot(g, x, y, glyph, lit) {
-    ctx.save();
-    ctx.fillStyle = ramp().slot;
-    roundRect(x, y, g.cardW, g.cardH, g.cardW * 0.14);
-    ctx.fill();
-    ctx.strokeStyle = lit ? ramp().home : ramp().edge;
-    ctx.lineWidth = lit ? 2.5 : 1;
-    if (lit) { ctx.shadowColor = ramp().home; ctx.shadowBlur = 12; }
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    if (glyph) {
-      ctx.fillStyle = ramp().edge;
-      ctx.font = Math.round(g.cardW * 0.52) + 'px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(glyph, x + g.cardW / 2, y + g.cardH / 2);
-    }
-    ctx.restore();
+    Cards.slot(ctx, x, y, g.cardW, g.cardH,
+      { ramp: ramp(), glyph: glyph, lit: lit ? ramp().home : null });
   }
 
-  /* `band` : hauteur réellement visible de la carte. En dessous d'une carte
-     couverte, seul l'index compte ; on ne dessine le gros symbole que si la
-     carte est entièrement dégagée. */
+  /* Le dessin des cartes vient du socle : les trois réussites de la
+     plateforme montrent ainsi exactement les mêmes cartes. `band` est la
+     hauteur réellement visible — sous une carte couverte, seul l'index compte. */
   function drawCard(g, x, y, card, band, lit) {
-    var ink = inkOf(card);
-    ctx.save();
-    if (lit) { ctx.shadowColor = lit; ctx.shadowBlur = 16; }
-    ctx.fillStyle = ramp().face;
-    roundRect(x, y, g.cardW, g.cardH, g.cardW * 0.14);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = lit || ramp().edge;
-    ctx.lineWidth = lit ? 2 : 1;
-    ctx.stroke();
-
-    ctx.fillStyle = ink;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    var label = RANKS[rankOf(card)];
-    ctx.font = '700 ' + Math.round(g.cardW * 0.33) + 'px system-ui, sans-serif';
-    ctx.fillText(label, x + g.cardW * 0.11, y + g.cardH * 0.055);
-    ctx.font = Math.round(g.cardW * 0.30) + 'px system-ui, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(SUITS[suitOf(card)], x + g.cardW * 0.90, y + g.cardH * 0.055);
-
-    if (band >= g.cardH * 0.75) {
-      ctx.font = Math.round(g.cardW * 0.46) + 'px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.globalAlpha = 0.85;
-      ctx.fillText(SUITS[suitOf(card)], x + g.cardW / 2, y + g.cardH * 0.62);
-    }
-    ctx.restore();
+    var skin = progress.currentSkin();
+    Cards.draw(ctx, x, y, g.cardW, g.cardH, card, {
+      ramp: ramp(), band: band, lit: lit,
+      ink: skin.rainbow ? inkOf(card) : null
+    });
   }
 
   function hintSpots() {

@@ -3,7 +3,7 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-13-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-15-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
@@ -20,6 +20,8 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🎵 **Neon Echo** | Une séquence à retenir, où le son porte l'information. |
 | 🖼️ **Neon Pixel** | Picross : les chiffres disent tout, et il en sort un dessin. |
 | 🗼 **Neon Tower** | Monter ou encaisser : le seul jeu où le hasard décide — et il est affiché. |
+| 🂡 **Neon Klondike** | Le solitaire : sept colonnes, une pioche, quatre fondations. |
+| 🕸️ **Neon Spider** | L'araignée : huit suites à tisser, du roi à l'as. |
 
 Le **hall** (`index.html`) liste les jeux **dans l'ordre du tableau ci-dessus** — celui
 de leur arrivée — et résume la progression commune : parties jouées, temps de jeu, points
@@ -477,6 +479,61 @@ Rien n'est écrit deux fois — les commandes et les difficultés sont celles qu
 manifeste déclare déjà, et les tests vérifient que **les treize jeux** déclarent bien un
 but, au moins trois points de règle et un barème.
 
+## 🂡 Neon Klondike
+
+Le solitaire que tout le monde connaît. Sept colonnes dont l'essentiel est caché, une
+pioche, quatre fondations à monter de l'as au roi. On empile en descendant et en
+alternant les couleurs ; **seul un roi entre dans une colonne vide** ; et découvrir la
+carte cachée d'une colonne la retourne aussitôt.
+
+| Mode | Pioche | Retournements |
+|---|---|---|
+| Facile | une carte | sans limite |
+| Normal | trois cartes | sans limite — prime de 50 % |
+| Difficile | trois cartes | deux seulement — prime de 120 % |
+| **Libre** | une carte | sans limite, et rien n'est classé |
+
+Il prend le **contre-pied de Neon Cells** : là tout est visible et aucune donne insoluble
+n'est servie ; ici une partie du jeu est cachée, et **toutes les donnes ne se gagnent
+pas**. C'est la nature du Klondike, et le jeu le dit dans ses règles plutôt que de le
+laisser découvrir. Le mode facile est celui qui en laisse passer le plus.
+
+**La pioche rend les cartes dans le même ordre au tour suivant** — c'est ce qui rend le
+jeu jouable, puisqu'on peut compter sur ce qui reviendra, et les tests le vérifient sur
+un cycle complet.
+
+## 🕸️ Neon Spider
+
+L'araignée : deux paquets, dix colonnes, huit suites à constituer du roi à l'as. Sa règle
+propre tient en deux phrases qui se contredisent presque — **on empile en descendant sans
+se soucier de l'enseigne, mais on ne déplace d'un bloc qu'une suite d'une seule
+enseigne**. Une suite complète et pure s'envole d'elle-même.
+
+| Mode | Enseignes | Ce qui change |
+|---|---|---|
+| Facile | une | Toute suite descendante est déplaçable |
+| Normal | deux | Une suite mêlée ne bouge plus d'un bloc — prime de 60 % |
+| Difficile | quatre | L'araignée dans sa forme la plus retorse — prime de 150 % |
+| **Libre** | une | Annulation à volonté, rien n'est classé |
+
+La pioche distribue une carte à **chaque** colonne d'un coup, et **refuse tant qu'une
+colonne est vide** — sinon elle y condamnerait la carte déposée. Une suite descendante
+que ses enseignes empêchent de bouger est grisée, pour qu'on le voie avant d'essayer.
+
+## Trois réussites, un seul paquet
+
+Klondike, Spider et Cells partagent `src/core/cards.js` : l'encodage des cartes, les
+paquets, le mélange et le **dessin**. Les trois montrent donc exactement les mêmes
+cartes, et une carte se dessine à un seul endroit.
+
+**Ce que les tests prouvent, et qui compte plus qu'une règle bien écrite :** dans un jeu
+de cartes, le défaut classique ne se voit pas — une carte dupliquée par un déplacement
+mal défait, ou perdue par une annulation. Les deux suites jouent donc **trois cents coups
+au hasard** — déplacements, pioches et annulations mêlés — et vérifient **après chacun**
+que le paquet est intact : 52 cartes distinctes pour le Klondike, 104 en bon nombre pour
+l'araignée, suites envolées comprises. Elles vérifient aussi qu'annuler rend l'état
+**au caractère près**, cartes cachées comprises.
+
 ## Succès, skins et statistiques
 
 Chaque jeu a ses **succès** — douze chacun — et plusieurs
@@ -514,6 +571,7 @@ src/core/
   progress.js                 # réglages, statistiques, succès et skins, pilotés par le manifeste
   sheets.js                   # panneaux règles / succès / skins / stats / réglages, et notifications
   ui.js                       # HUD, panneau central, sélecteur de difficulté, barre d'outils
+  cards.js                    # paquets, mélange et dessin des cartes, partagés par les réussites
   loop.js                     # boucle à pas fixe, rendu interpolé, canvas HiDPI
   input.js                    # clavier (coups, maintien, saisie de texte), pointeur, balayage, pavé, glisser-déposer
   audio.js                    # bruitages WebAudio
@@ -534,8 +592,10 @@ src/games/
   echo/manifest.js · game.js · echo.css
   pixel/manifest.js · game.js · pictures.js · pixel.css
   tower/manifest.js · game.js · tower.css
+  klondike/manifest.js · game.js · klondike.css
+  spider/manifest.js · game.js · spider.css
 src/hub/hub.js · hub.css      # le hall
-tests/                        # vingt-trois suites de bout en bout (voir plus bas)
+tests/                        # vingt-cinq suites de bout en bout (voir plus bas)
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
@@ -552,12 +612,12 @@ au premier chargement, puis effacées.
 
 ## Tests
 
-Vingt-trois suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
+Vingt-cinq suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
 jeux, appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 
 ```bash
 npm install && npx playwright install chromium
-npm test                        # les vingt-trois suites, environ 5 minutes
+npm test                        # les vingt-cinq suites, environ 5 minutes
 node tests/run.js mines four    # seulement celles dont le nom correspond
 npm start                       # sert le jeu sur http://127.0.0.1:8123
 ```
@@ -602,7 +662,7 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  treize jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  quinze jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
   52 ms), le Tetris fait descendre sa pièce au rythme du niveau (1100 à 70 ms), le
   casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4 ne
   demandent aucun tick — leur boucle ne sert qu'aux animations —, le démineur s'en
@@ -640,7 +700,7 @@ Points techniques notables :
 
 ## Idées d'évolution
 
-- Un quatorzième jeu : un jeu de chemins à relier, ou un Memory.
+- Un seizième jeu : un jeu de chemins à relier, ou un Memory.
 - Défi quotidien : une graine déterministe pour que tout le monde joue le même mot ou
   la même donne le même jour.
 - Application installable et hors ligne (manifeste + service worker).

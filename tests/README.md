@@ -6,7 +6,7 @@ appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 ```bash
 npm install          # récupère Playwright
 npx playwright install chromium
-npm test             # les vingt-trois suites
+npm test             # les vingt-cinq suites
 node tests/run.js snake four    # seulement celles dont le nom contient ça
 ```
 
@@ -31,7 +31,7 @@ harnais fournit `h.page`, `h.url('snake')`, `h.hub()`, `h.fileUrl('snake')`,
 
 Chaque jeu expose une sonde en lecture seule — `window.__neonSnake`,
 `__neonBricks`, `__neon2048`, `__neonMines`, `__neonFour`, `__neonBlocks`,
-`__neonCrates`, `__neonMeow`, `__neonCells`, `__neonMots`, `__neonEcho`, `__neonPixel`, `__neonTower` — qui donne un
+`__neonCrates`, `__neonMeow`, `__neonCells`, `__neonMots`, `__neonEcho`, `__neonPixel`, `__neonTower`, `__neonKlondike`, `__neonSpider` — qui donne un
 instantané de la partie et, pour certains, de quoi poser une situation précise
 (placer une grille, planter des mines, lancer la balle, distribuer une donne
 connue). C'est ce qui permet de
@@ -49,6 +49,12 @@ Neon Mots met sa règle centrale à nu : `__neonMots.mark(proposition, solution)
 fonction de marquage elle-même, et la suite la fait tourner sur **toutes les paires de
 mots des trois listes**, soit plus de 359 000 marquages, pour vérifier qu'une lettre
 répétée n'est jamais signalée plus de fois qu'elle n'apparaît.
+
+Les jeux de cartes exposent en plus `allCards()` : toutes les cartes en jeu, où qu'elles
+soient — colonnes, pioche, défausse, fondations, suites envolées. Les suites du Klondike
+et de l'araignée jouent trois cents coups au hasard et vérifient après chacun que le
+paquet est intact. C'est le défaut qui ne se voit pas à l'œil dans un jeu de cartes : une
+carte dupliquée par un déplacement mal défait.
 
 Neon Tower est le seul jeu où le hasard décide, et sa sonde sert à le mettre en doute :
 `peek()` lit la porte piégée avant tout choix, `reseat()` refait le tirage par le même
