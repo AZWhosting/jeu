@@ -70,6 +70,12 @@ window.GameRegistry = [
     styles: ['src/games/pixel/pixel.css']
   },
   {
+    id: 'tower',
+    meta: ['src/games/tower/manifest.js'],
+    scripts: ['src/games/tower/game.js'],
+    styles: ['src/games/tower/tower.css']
+  },
+  {
     id: '2048',
     meta: ['src/games/2048/manifest.js'],
     scripts: ['src/games/2048/game.js'],

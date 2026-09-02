@@ -44,12 +44,12 @@ module.exports = {
       await page.goto(h.hub());
       await page.waitForTimeout(300);
       const cards = await page.$$eval('.game-card', els => els.map(e => ({ name: e.querySelector('.game-name').textContent, href: e.getAttribute('href') })));
-      check('les douze jeux sont listés', cards.length === 12, cards.map(c => c.name).join(' / '));
+      check('les treize jeux sont listés', cards.length === 13, cards.map(c => c.name).join(' / '));
       check('les liens pointent vers la coquille', cards.every(c => /jeu\.html\?id=/.test(c.href)), cards.map(c => c.href).join(' '));
       const profile = await page.$$eval('#profile .tile-value', e => e.map(x => x.textContent));
       check('profil commun affiché', profile.length === 4, profile.join(' | '));
     check('l\'accroche compte les jeux elle-même',
-          /^12 jeux/.test(await page.textContent('.hall-tagline')),
+          /^13 jeux/.test(await page.textContent('.hall-tagline')),
           await page.textContent('.hall-tagline'));
       await page.screenshot({ path: h.shot('p1-hall') });
 
@@ -65,7 +65,9 @@ module.exports = {
     });
     check('le contenu dépasse l\'écran', mesure.contenu > mesure.ecran,
           mesure.contenu + 'px pour ' + mesure.ecran + 'px');
-    await court.mouse.wheel(0, 900);
+    // Faire défiler d'une distance fixe vieillit mal : le catalogue s'allonge
+    // à chaque jeu. On défile de toute la hauteur qui dépasse.
+    await court.mouse.wheel(0, mesure.contenu - mesure.ecran + 200);
     await court.waitForTimeout(250);
     check('la page défile', (await court.evaluate(function () { return window.scrollY; })) > 100,
           await court.evaluate(function () { return window.scrollY; }));

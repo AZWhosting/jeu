@@ -90,7 +90,7 @@ module.exports = {
 
       console.log('\n[Le hall liste tous les jeux]');
       const names = await page.$$eval('.game-name', e => e.map(x => x.textContent));
-      check('douze jeux', names.length === 12, names.join(' / '));
+      check('treize jeux', names.length === 13, names.join(' / '));
 
 
     check('aucune erreur JS', errors.length === 0, errors.join(' | ') || undefined);

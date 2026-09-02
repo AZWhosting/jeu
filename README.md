@@ -3,7 +3,7 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-12-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-13-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
@@ -19,6 +19,7 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🔤 **Neon Mots** | Le mot caché en six essais, clavier AZERTY à l'écran. |
 | 🎵 **Neon Echo** | Une séquence à retenir, où le son porte l'information. |
 | 🖼️ **Neon Pixel** | Picross : les chiffres disent tout, et il en sort un dessin. |
+| 🗼 **Neon Tower** | Monter ou encaisser : le seul jeu où le hasard décide — et il est affiché. |
 
 Le **hall** (`index.html`) liste les jeux et résume la progression commune : parties
 jouées, temps de jeu, points cumulés et succès tous jeux confondus. Il défile quand le
@@ -44,6 +45,7 @@ Tous les jeux partagent les mêmes commandes.
 | Écrire un mot | Lettres, `Entrée`, `Retour` | Clavier AZERTY dessiné sur le plateau |
 | Frapper une dalle | `1` à `6` | Tape sur la dalle |
 | Peindre une ligne | — | Glisse sur la grille ; `X` change de mode, `Z` annule |
+| Ouvrir une porte | `1` à `6` | Tape sur la porte ; `E` encaisse, `P` sonde |
 | Action secondaire (drapeau) | `F` | Clic droit, ou appui long sur la case |
 | Pause | `Espace` / `Échap` | Bouton ❚❚ |
 | Démarrer / rejouer | `Espace` ou `Entrée` | Bouton *Jouer* |
@@ -413,6 +415,47 @@ mal formée.
 Réglages propres au jeu : barrage automatique des lignes achevées, et grisage des
 indices déjà honorés.
 
+## 🗼 Neon Tower
+
+Une tour de dix paliers. À chaque palier, des portes dont **une est piégée** : passer
+fait grossir le pot, tomber le fait perdre. On peut **encaisser à tout moment** — le pot
+rejoint le score et la manche repart d'en bas. Plus haut on monte, moins il y a de
+portes : le risque grimpe avec la récompense.
+
+C'est le seul jeu de la plateforme qui pose cette question-là — **quand s'arrêter**. Les
+douze autres se terminent quand on perd ou quand on a fini.
+
+| Mode | Vies | Le calcul bascule au |
+|---|---|---|
+| Facile | 4 | sixième palier |
+| Normal | 3 | cinquième palier |
+| Difficile | 2 | quatrième palier |
+| **Libre** | ∞ | sixième palier — les pièges coûtent le pot, jamais la partie |
+
+**Le hasard est ici au centre, ce que la plateforme avait évité jusqu'à présent.** Il est
+donc entièrement montré : à chaque palier le jeu affiche la probabilité exacte, ce que
+deviendrait le pot, et **l'espérance du coup** — en vert tant que monter reste payant, en
+rouge après. Le joueur ne parie jamais à l'aveugle. Et à partir du palier annoncé, monter
+rapporte en moyenne moins que ce qu'on a déjà : c'est là que le jeu commence vraiment.
+
+Une **sonde** ouvre le rideau sur une porte sans l'ouvrir — elle change le calcul, et il
+en reste rarement assez. On en gagne une à chaque pot encaissé.
+
+**Ce que les tests prouvent, et qui compte plus qu'une promesse :**
+
+- **Le jeu ne triche pas.** La porte piégée est tirée à l'entrée du palier, avant tout
+  choix. La suite la lit d'abord, puis choisit — à côté, puis dessus — sur soixante
+  manches, et vérifie que le résultat ne dément jamais la lecture. Un jeu qui déciderait
+  après coup se trahirait là.
+- **Le tirage ne penche pas.** Six mille tirages sur un palier à six portes, et l'écart
+  de chaque porte à la moyenne est borné.
+- **Les chiffres affichés sont exacts.** Portes, probabilités, pots et espérances sont
+  recalculés indépendamment sur les dix paliers des trois difficultés, et le palier du
+  basculement est mesuré à partir de la table plutôt que cru sur parole.
+
+Réglages propres au jeu : affichage de l'espérance, et confirmation demandée au-delà du
+basculement.
+
 ## Succès, skins et statistiques
 
 Chaque jeu a ses **succès** — douze chacun — et plusieurs
@@ -469,8 +512,9 @@ src/games/
   mots/manifest.js · game.js · words.js · mots.css
   echo/manifest.js · game.js · echo.css
   pixel/manifest.js · game.js · pictures.js · pixel.css
+  tower/manifest.js · game.js · tower.css
 src/hub/hub.js · hub.css      # le hall
-tests/                        # vingt-deux suites de bout en bout (voir plus bas)
+tests/                        # vingt-trois suites de bout en bout (voir plus bas)
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
@@ -487,12 +531,12 @@ au premier chargement, puis effacées.
 
 ## Tests
 
-Vingt-deux suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
+Vingt-trois suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
 jeux, appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 
 ```bash
 npm install && npx playwright install chromium
-npm test                        # les vingt-deux suites, environ 5 minutes
+npm test                        # les vingt-trois suites, environ 5 minutes
 node tests/run.js mines four    # seulement celles dont le nom correspond
 npm start                       # sert le jeu sur http://127.0.0.1:8123
 ```
@@ -535,7 +579,7 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  douze jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  treize jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
   52 ms), le Tetris fait descendre sa pièce au rythme du niveau (1100 à 70 ms), le
   casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4 ne
   demandent aucun tick — leur boucle ne sert qu'aux animations —, le démineur s'en
@@ -573,7 +617,7 @@ Points techniques notables :
 
 ## Idées d'évolution
 
-- Un treizième jeu : un Memory, ou un jeu de chemins à relier.
+- Un quatorzième jeu : un jeu de chemins à relier, ou un Memory.
 - Défi quotidien : une graine déterministe pour que tout le monde joue le même mot ou
   la même donne le même jour.
 - Application installable et hors ligne (manifeste + service worker).
