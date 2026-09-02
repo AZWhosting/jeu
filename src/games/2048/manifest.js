@@ -46,6 +46,20 @@ Games['2048'] = (function () {
         hint: 'Sans issue, les plus petites tuiles s\'évaporent : on ne perd jamais.' }
     ],
 
+    rules: {
+      goal: 'Fais glisser les tuiles pour les fusionner et atteindre l\'objectif.',
+      how: [
+        'Une direction pousse toutes les tuiles à fond de ce côté.',
+        'Deux tuiles identiques qui se rencontrent fusionnent en leur somme.',
+        'Une tuile ne fusionne qu\'une fois par coup.',
+        'Une nouvelle tuile apparaît après chaque coup qui a bougé quelque chose.'
+      ],
+      scoring: [
+        'Chaque fusion rapporte la valeur de la tuile obtenue.',
+        'La partie s\'arrête quand plus aucun coup ne change la grille.'
+      ],
+      note: 'Atteindre l\'objectif affiche la victoire, mais rien n\'oblige à s\'arrêter là. En mode zen, une grille sans issue voit ses plus petites tuiles s\'évaporer.'
+    },
     settings: [
       { key: 'target', type: 'choice', label: 'Objectif', default: '2048',
         options: [

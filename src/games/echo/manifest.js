@@ -65,6 +65,20 @@ Games.echo = (function () {
         hint: 'Une erreur ne termine rien : la manche est simplement rejouée.' }
     ],
 
+    rules: {
+      goal: 'Retiens la séquence que joue la machine, et rends-la.',
+      how: [
+        'La machine allume les dalles une à une : on écoute et on regarde.',
+        'Puis on rend la séquence dans le même ordre — à l\'envers en difficile.',
+        'Une seule faute suffit à perdre la manche.',
+        'Frapper pendant que la machine joue ne compte pas.'
+      ],
+      scoring: [
+        'Chaque manche réussie rapporte dix points par dalle de la séquence.',
+        'Le tout est multiplié par la prime de difficulté.'
+      ],
+      note: 'La séquence garde son préfixe et gagne une dalle par manche, et le rythme presse — sans jamais passer sous un plancher. Chaque dalle a sa note, sa couleur et son symbole : le jeu se joue muet comme il se joue sans distinguer les couleurs.'
+    },
     settings: [
       { key: 'glyphs', type: 'toggle', label: 'Symboles sur les dalles', default: true,
         note: 'Chaque dalle garde une forme, en plus de sa couleur' },

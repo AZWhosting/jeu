@@ -57,6 +57,20 @@ Games.meow = (function () {
         hint: 'Sans chronomètre, et les coups de patte sont gratuits.' }
     ],
 
+    rules: {
+      goal: 'Installe un chat par territoire, sans qu\'aucun ne se gêne.',
+      how: [
+        'Un chat par territoire coloré, ni plus ni moins.',
+        'Jamais deux chats sur la même ligne ni la même colonne.',
+        'Jamais deux chats qui se touchent, pas même en diagonale.',
+        'Un clic pose un chat ; un clic droit — ou un appui long — barre une case dont on a déduit qu\'elle est vide.'
+      ],
+      scoring: [
+        'Chaque chat bien posé rapporte des points, et la grille achevée une prime qui décroît avec le temps.',
+        'Un coup de patte place un chat juste, contre cinquante points.'
+      ],
+      note: 'Les grilles sont tirées au sort, jamais préécrites, et chacune n\'a qu\'une seule solution : tout se déduit, rien ne se devine.'
+    },
     settings: [
       { key: 'clash', type: 'toggle', label: 'Signaler les bagarres', default: true,
         note: 'Colore en rose deux chats qui ne peuvent pas cohabiter' },

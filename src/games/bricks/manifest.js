@@ -43,6 +43,20 @@ Games.bricks = (function () {
         hint: 'La balle rebondit aussi en bas : on ne perd jamais.' }
     ],
 
+    rules: {
+      goal: 'Casse toutes les briques sans laisser tomber la balle.',
+      how: [
+        'La raquette se pilote aux flèches, à la souris ou au doigt.',
+        'L\'angle de renvoi dépend du point d\'impact : au centre la balle repart droit, sur le bord elle part de biais.',
+        'Chaque niveau vidé ajoute une rangée et accélère un peu la balle.',
+        'Les bonus tombent des briques cassées — il faut aller les chercher.'
+      ],
+      scoring: [
+        'Chaque brique cassée rapporte des points ; les rangées du haut valent plus.',
+        'Une balle perdue coûte une vie ; à zéro, la partie s\'arrête.'
+      ],
+      note: 'En mode zen la balle rebondit aussi en bas : on ne perd jamais.'
+    },
     settings: [
       { key: 'ballSpeed', type: 'choice', label: 'Vitesse de la balle', default: 'normal',
         options: [

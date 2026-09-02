@@ -146,6 +146,12 @@ window.Core = window.Core || {};
     $('restartBtn').addEventListener('click', options.onRestart);
     $('statsBtn').addEventListener('click', function () { options.sheets.open('stats'); });
 
+    // Le « i » du bandeau : les règles, à portée sans quitter la partie.
+    var infoBtn = $('infoBtn');
+    if (infoBtn) {
+      infoBtn.addEventListener('click', function () { options.sheets.open('rules'); });
+    }
+
     if (options.onQuit) {
       $('quitBtn').addEventListener('click', options.onQuit);
       // Quitter par la flèche du HUD enregistre aussi : c'est la même sortie.

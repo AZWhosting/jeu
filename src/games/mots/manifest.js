@@ -58,6 +58,20 @@ Games.mots = (function () {
         hint: 'Huit essais, et un mot manqué n\'arrête pas la partie.' }
     ],
 
+    rules: {
+      goal: 'Trouve le mot caché avant d\'épuiser tes essais.',
+      how: [
+        'Chaque proposition doit être un mot connu du jeu, de la bonne longueur.',
+        'Après chaque essai, chaque lettre est jugée : bien placée, présente ailleurs, ou absente.',
+        'Une lettre répétée n\'est signalée qu\'autant de fois qu\'elle apparaît dans le mot.',
+        'Le clavier sous la grille garde la trace de tout ce qu\'on a appris.'
+      ],
+      scoring: [
+        'Un mot trouvé rapporte 30 points par lettre, plus 40 par essai resté inutilisé.',
+        'Le tout est multiplié par la prime de difficulté.'
+      ],
+      note: 'La première lettre est offerte, comme au Motus — c\'est un réglage. La liste des mots est écrite à la main et donc limitée : le réglage « Refuser les mots inconnus » existe pour le jour où elle recale un vrai mot.'
+    },
     settings: [
       { key: 'first', type: 'toggle', label: 'Première lettre offerte', default: true,
         note: 'Comme au Motus : le mot commence déjà pour toi' },

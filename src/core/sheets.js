@@ -1,5 +1,6 @@
-/* Socle — panneaux succès / skins / statistiques / réglages, et notifications.
-   Le contenu est entièrement dérivé du manifeste du jeu et de sa progression. */
+/* Socle — panneaux règles / succès / skins / statistiques / réglages, et
+   notifications. Le contenu est entièrement dérivé du manifeste du jeu et de sa
+   progression. */
 window.Core = window.Core || {};
 
 Core.createSheets = function (progress, hooks) {
@@ -12,11 +13,16 @@ Core.createSheets = function (progress, hooks) {
   hooks = hooks || {};
 
   var TABS = [
+    { id: 'rules',        label: 'Règles', needsRules: true },
     { id: 'achievements', label: 'Succès' },
     { id: 'skins',        label: 'Skins', needsSkins: true },
     { id: 'stats',        label: 'Stats' },
     { id: 'settings',     label: 'Réglages' }
-  ].filter(function (tab) { return !tab.needsSkins || progress.skins().length > 1; });
+  ].filter(function (tab) {
+    if (tab.needsSkins) { return progress.skins().length > 1; }
+    if (tab.needsRules) { return !!manifest.rules; }
+    return true;
+  });
 
   function difficultyLabel(id) {
     var d = progress.difficultyById(id);
@@ -131,6 +137,56 @@ Core.createSheets = function (progress, hooks) {
   /* ------------------------------------------------------------------ */
   /* Onglets                                                             */
   /* ------------------------------------------------------------------ */
+
+  /* Les règles, telles que le manifeste les déclare : un but en une phrase,
+     comment on joue, comment on marque, et ce que le jeu garantit. */
+  function renderRules() {
+    var rules = manifest.rules || {};
+    var frag = document.createDocumentFragment();
+
+    if (rules.goal) {
+      var but = el('p', 'rule-goal', rules.goal);
+      frag.appendChild(but);
+    }
+
+    function section(titre, items) {
+      if (!items || !items.length) { return; }
+      frag.appendChild(el('div', 'progress-head', titre));
+      var list = el('ul', 'rule-list');
+      items.forEach(function (line) { list.appendChild(el('li', null, line)); });
+      frag.appendChild(list);
+    }
+
+    section('Comment on joue', rules.how);
+    section('Comment on marque', rules.scoring);
+
+    if (rules.note) {
+      var note = el('p', 'rule-note', rules.note);
+      frag.appendChild(note);
+    }
+
+    // Les commandes, reprises de l'aide affichée sous le menu.
+    if (manifest.hint) {
+      frag.appendChild(el('div', 'progress-head', 'Commandes'));
+      var cmd = el('p', 'rule-keys');
+      manifest.hint.split(/(\{[^}]+\})/).forEach(function (part) {
+        if (!part) { return; }
+        if (part.charAt(0) === '{') { cmd.appendChild(el('kbd', null, part.slice(1, -1))); }
+        else { cmd.appendChild(document.createTextNode(part)); }
+      });
+      frag.appendChild(cmd);
+    }
+
+    // Les difficultés, avec ce que chacune change.
+    frag.appendChild(el('div', 'progress-head', 'Difficultés'));
+    var diffs = el('ul', 'rule-list');
+    progress.difficulties().forEach(function (d) {
+      diffs.appendChild(el('li', null, d.label + ' — ' + (d.hint || '')));
+    });
+    frag.appendChild(diffs);
+
+    return frag;
+  }
 
   function renderAchievements() {
     var list = progress.achievements();
@@ -337,7 +393,8 @@ Core.createSheets = function (progress, hooks) {
     });
 
     body.innerHTML = '';
-    if (activeTab === 'achievements') { body.appendChild(renderAchievements()); }
+    if (activeTab === 'rules') { body.appendChild(renderRules()); }
+    else if (activeTab === 'achievements') { body.appendChild(renderAchievements()); }
     else if (activeTab === 'skins') { body.appendChild(renderSkins()); }
     else if (activeTab === 'stats') { body.appendChild(renderStats()); }
     else { body.appendChild(renderSettings()); }

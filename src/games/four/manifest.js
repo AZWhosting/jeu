@@ -42,6 +42,19 @@ Games.four = (function () {
         hint: 'L\'adversaire joue au hasard, et {U} annule ton dernier coup.' }
     ],
 
+    rules: {
+      goal: 'Aligne quatre jetons avant l\'adversaire.',
+      how: [
+        'Un jeton lâché dans une colonne tombe sur la première case libre.',
+        'Quatre jetons alignés l\'emportent : horizontalement, verticalement ou en diagonale.',
+        'La grille pleine sans alignement est un match nul.'
+      ],
+      scoring: [
+        'Chaque jeton posé rapporte 10 points.',
+        'La victoire ajoute une prime d\'autant plus grosse que la partie a été courte ; un nul en rapporte le tiers.'
+      ],
+      note: 'L\'adversaire explore vraiment l\'arbre des coups. Même en mode maladroit, il saisit toujours une victoire immédiate et pare toujours une défaite immédiate.'
+    },
     settings: [
       { key: 'first', type: 'choice', label: 'Qui commence', default: 'you',
         options: [

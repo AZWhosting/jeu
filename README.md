@@ -51,6 +51,7 @@ Tous les jeux partagent les mêmes commandes.
 | Démarrer / rejouer | `Espace` ou `Entrée` | Bouton *Jouer* |
 | Couper le son | — | Bouton ♪ |
 | Panneaux | — | Bouton ☰, ou les liens du menu |
+| **Règles du jeu** | — | Bouton *i* en haut à droite, ou l'onglet *Règles* |
 | **Enregistrer et quitter** | — | Bouton ⏏, la flèche ‹, ou le bouton du panneau de pause |
 
 **Quitter en cours de partie n'efface rien** : le bouton ⏏ de la barre d'outils, la
@@ -456,6 +457,15 @@ en reste rarement assez. On en gagne une à chaque pot encaissé.
 Réglages propres au jeu : affichage de l'espérance, et confirmation demandée au-delà du
 basculement.
 
+## Les règles, dans le jeu
+
+Chaque jeu porte ses propres règles dans son manifeste, et le bouton **i** en haut à
+droite les ouvre sans quitter la partie : le but en une phrase, comment on joue, comment
+on marque, ce que le jeu garantit, les commandes, et ce que change chaque difficulté.
+Rien n'est écrit deux fois — les commandes et les difficultés sont celles que le
+manifeste déclare déjà, et les tests vérifient que **les treize jeux** déclarent bien un
+but, au moins trois points de règle et un barème.
+
 ## Succès, skins et statistiques
 
 Chaque jeu a ses **succès** — douze chacun — et plusieurs
@@ -491,7 +501,7 @@ jeu.html                      # la coquille commune, ouverte en ?id=<jeu>
 src/core/
   storage.js                  # stockage local cloisonné : neon:<espace>:<clé>
   progress.js                 # réglages, statistiques, succès et skins, pilotés par le manifeste
-  sheets.js                   # panneaux succès / skins / stats / réglages, et notifications
+  sheets.js                   # panneaux règles / succès / skins / stats / réglages, et notifications
   ui.js                       # HUD, panneau central, sélecteur de difficulté, barre d'outils
   loop.js                     # boucle à pas fixe, rendu interpolé, canvas HiDPI
   input.js                    # clavier (coups, maintien, saisie de texte), pointeur, balayage, pavé, glisser-déposer
@@ -518,11 +528,11 @@ tests/                        # vingt-trois suites de bout en bout (voir plus ba
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
-réglages, ses succès (chacun un simple prédicat sur la partie), ses skins et les
-tuiles de statistiques avec leur vocabulaire. En échange, il reçoit les quatre
-panneaux, les thèmes, la persistance, les notifications de déblocage, la courbe de
+réglages, ses succès (chacun un simple prédicat sur la partie), ses skins, ses règles
+écrites et les tuiles de statistiques avec leur vocabulaire. En échange, il reçoit les
+cinq panneaux, les thèmes, la persistance, les notifications de déblocage, la courbe de
 progression, le HUD, le menu et la barre d'outils. `game.js` ne contient plus que les
-règles et le rendu.
+règles jouées et le rendu.
 
 **Cloisonnement des données** : `neon:app:settings` porte les réglages partagés entre
 tous les jeux ; `neon:<jeu>:*` porte le reste (réglages propres, totaux, succès,
@@ -560,7 +570,7 @@ l'autre au lieu de repartir de zéro.
 ## Ajouter un jeu
 
 1. Créer `src/games/<id>/manifest.js` (nom, difficultés, réglages, succès, skins,
-   statistiques) et `game.js` (règles et rendu).
+   règles écrites, statistiques) et `game.js` (règles jouées et rendu).
 2. L'inscrire dans `src/games/registry.js`.
 3. Ajouter son manifeste au hall dans `index.html`.
 

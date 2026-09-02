@@ -43,6 +43,21 @@ Games.blocks = (function () {
         hint: 'Pile pleine, les lignes du haut s\'évaporent : on ne perd jamais.' }
     ],
 
+    rules: {
+      goal: 'Emboîte les pièces qui tombent et complète des lignes.',
+      how: [
+        'Les flèches déplacent la pièce, Haut la fait tourner, Bas accélère sa descente.',
+        'Espace la pose d\'un coup ; la projection au sol montre où elle atterrira.',
+        'Une ligne entièrement remplie disparaît et fait descendre le reste.',
+        'Une pièce posée dispose d\'un court répit avant de se figer : de quoi la glisser une dernière fois.'
+      ],
+      scoring: [
+        'Une ligne vaut 100 points, deux 300, trois 500, quatre 800 — le tout multiplié par le niveau.',
+        'Le niveau monte toutes les dix lignes, et la descente accélère avec lui.',
+        'Poser soi-même la pièce rapporte deux points par case gagnée.'
+      ],
+      note: 'Les pièces sortent d\'un sac de sept : aucune ne se fait attendre indéfiniment.'
+    },
     settings: [
       { key: 'ghost', type: 'toggle', label: 'Projection au sol', default: true,
         note: 'Montre où la pièce va se poser' },

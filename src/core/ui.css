@@ -449,6 +449,58 @@ kbd {
 
 .back:hover { color: var(--text); background: rgba(255, 255, 255, 0.09); }
 
+/* Le « i » des règles : même pastille que la flèche de retour, à l'autre bout. */
+.info {
+  margin-right: 0;
+  margin-left: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
+  cursor: pointer;
+}
+
+/* ---- Règles ---- */
+
+.rule-goal {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--mint);
+  border-radius: 12px;
+}
+
+.rule-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.rule-list li { line-height: 1.45; }
+.rule-list li::marker { color: var(--mint); }
+
+.rule-note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+}
+
+.rule-keys {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 /* ---- Liens du menu ---- */
 
 .menu-links {
@@ -505,15 +557,15 @@ kbd {
   border-bottom: 1px solid var(--line);
 }
 
+/* Cinq onglets depuis l'arrivée des règles : sur un écran étroit ils ne
+   tiennent plus sur une ligne. Ils passent à la ligne plutôt que de disparaître
+   dans un défilement horizontal que rien n'annonce. */
 .tabs {
   display: flex;
   flex: 1;
+  flex-wrap: wrap;
   gap: 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
-
-.tabs::-webkit-scrollbar { display: none; }
 
 .tab {
   flex: 0 0 auto;
@@ -852,6 +904,7 @@ kbd {
    place manque. Le panneau s'y resserre encore — il ne peut pas sortir du
    plateau sans recouvrir la barre d'outils, qui doit rester cliquable. */
 @media (max-width: 620px) {
+  .tab { padding: 6px 9px; font-size: 12px; }
   .overlay { padding: 8px; }
   .panel { padding: 13px 16px; }
   .title { font-size: 24px; }

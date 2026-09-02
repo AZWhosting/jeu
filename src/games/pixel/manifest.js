@@ -50,6 +50,21 @@ Games.pixel = (function () {
         hint: 'Les mêmes dessins, sans compter les erreurs ni le score.' }
     ],
 
+    rules: {
+      goal: 'Retrouve le dessin caché derrière les chiffres.',
+      how: [
+        'Les chiffres en marge donnent la longueur des blocs pleins de chaque ligne et de chaque colonne, dans l\'ordre.',
+        'Entre deux blocs, il y a toujours au moins une case vide.',
+        'On remplit au glissé : la première case touchée décide si le trait pose ou retire.',
+        'Barrer une case ne coûte rien — c\'est une note, pas une affirmation.'
+      ],
+      scoring: [
+        'Chaque case justement remplie vaut 8 points.',
+        'Un dessin achevé rapporte 150 points, plus un point par seconde gagnée sur quatre minutes.',
+        'Remplir une case qui devait rester vide coûte 20 points et une vie.'
+      ],
+      note: 'Il n\'y a jamais à deviner : les vingt dessins sont prouvés solubles par la seule déduction ligne par ligne, ce qui garantit aussi qu\'aucun n\'a deux solutions.'
+    },
     settings: [
       { key: 'autocross', type: 'toggle', label: 'Barrer les lignes finies', default: true,
         note: 'Une ligne dont tous les blocs sont posés se barre toute seule' },

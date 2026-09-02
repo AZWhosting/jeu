@@ -60,6 +60,21 @@ Games.cells = (function () {
         hint: 'Quatre cellules, sans classement ni chronomètre.' }
     ],
 
+    rules: {
+      goal: 'Range les 52 cartes sur les quatre fondations, de l\'as au roi.',
+      how: [
+        'Dans les colonnes, on empile en descendant et en alternant les couleurs : un valet noir sur une dame rouge.',
+        'Les quatre cellules libres tiennent une carte chacune, quelle qu\'elle soit.',
+        'Une suite déjà rangée se déplace d\'un geste, dans la limite de ce qu\'on pourrait déplacer à la main : une carte par cellule libre plus une, et le double pour chaque colonne vide.',
+        'Une tape envoie la carte là où elle a le plus de sens : sa fondation d\'abord, une colonne ensuite, une cellule en dernier recours.'
+      ],
+      scoring: [
+        'Chaque carte montée sur une fondation vaut 12 points.',
+        'Une donne terminée rapporte 250 points, plus un point par seconde gagnée sur cinq minutes, le tout multiplié par la difficulté.',
+        'Un indice coûte 40 points.'
+      ],
+      note: 'Tout est visible dès le départ : rien n\'est subi. Aucune donne insoluble n\'est servie — le jeu la résout avant de la poser sur le tapis, et il sait dire quand une position est perdue.'
+    },
     settings: [
       { key: 'auto', type: 'toggle', label: 'Montée automatique', default: true,
         note: 'Une carte qui ne peut plus servir rejoint seule sa fondation' },

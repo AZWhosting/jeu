@@ -44,6 +44,20 @@ Games.mines = (function () {
         hint: 'Une mine touchée est désamorcée : on ne perd jamais.' }
     ],
 
+    rules: {
+      goal: 'Découvre toutes les cases sans mine.',
+      how: [
+        'Un chiffre dit combien de mines touchent la case, en comptant les diagonales.',
+        'Le clic droit — ou un appui long — plante un drapeau sur une case qu\'on croit minée.',
+        'Recliquer sur un chiffre déjà découvert déblaie ses voisines, dès que les drapeaux posés autour correspondent.',
+        'Une case vide ouvre en cascade tout son voisinage.'
+      ],
+      scoring: [
+        'Chaque case révélée rapporte 10 points.',
+        'La victoire ajoute une prime qui décroît avec le temps : les grilles vite déminées valent plus.'
+      ],
+      note: 'Le premier clic est toujours sûr : les mines ne sont posées qu\'après, jamais sous la case jouée ni ses voisines.'
+    },
     settings: [
       { key: 'firstSafe', type: 'toggle', label: 'Premier clic sûr', default: true,
         note: 'Les mines sont posées après le premier clic, jamais dessous' },

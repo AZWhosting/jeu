@@ -82,6 +82,20 @@ Games.tower = (function () {
         hint: 'Les pièges coûtent le pot, jamais la partie. Sans classement.' }
     ],
 
+    rules: {
+      goal: 'Monte le plus haut possible — mais encaisse avant de tomber.',
+      how: [
+        'À chaque palier, une porte sur n est piégée : la porte piégée est tirée au sort avant que tu ne choisisses.',
+        'Passer fait grossir le pot ; tomber le fait perdre, et coûte une vie.',
+        'Encaisser met le pot à l\'abri dans le score et renvoie la manche au premier palier.',
+        'Une sonde ouvre le rideau sur une porte sans l\'ouvrir. On en gagne une à chaque pot encaissé.'
+      ],
+      scoring: [
+        'Le pot est fixé par le palier atteint, et lui seul : il est annoncé avant chaque choix.',
+        'Seul le pot encaissé compte dans le score. Un piège ne retire rien de ce qui est déjà encaissé.'
+      ],
+      note: 'Le jeu affiche la probabilité exacte, ce que deviendrait le pot et l\'espérance du coup — en vert tant que monter reste payant, en rouge après. À partir du palier annoncé par la difficulté, monter rapporte en moyenne moins que ce qu\'on a déjà.'
+    },
     settings: [
       { key: 'odds', type: 'toggle', label: 'Afficher l\'espérance', default: true,
         note: 'Ce que rapporte le prochain palier, en moyenne' },

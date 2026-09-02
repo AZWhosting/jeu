@@ -76,6 +76,26 @@ module.exports = {
             var r = el.getBoundingClientRect();
             return r.top < window.innerHeight && r.bottom > 0;
           }));
+    /* Le corps de page est un conteneur flex : son rembourrage bas n'entre pas
+       dans la zone défilable. Sans marge portée par le contenu lui-même, le
+       dernier jeu et le pied se retrouvent collés au bord de la fenêtre. */
+    var bas = await court.evaluate(function () {
+      var cards = document.querySelectorAll('.game-card');
+      var last = cards[cards.length - 1].getBoundingClientRect();
+      var foot = document.querySelector('.hall-foot').getBoundingClientRect();
+      return {
+        souslePied: Math.round(window.innerHeight - foot.bottom),
+        entreCarteEtPied: Math.round(foot.top - last.bottom),
+        piedEntier: foot.bottom <= window.innerHeight + 1,
+        carteEntiere: last.bottom <= window.innerHeight + 1
+      };
+    });
+    check('en bas de page, le pied et la dernière carte tiennent en entier',
+          bas.piedEntier && bas.carteEntiere, JSON.stringify(bas));
+    check('le pied n\'est pas collé au bord de la fenêtre', bas.souslePied >= 16,
+          bas.souslePied + 'px sous le pied');
+    check('la dernière carte ne touche pas le pied', bas.entreCarteEtPied >= 12,
+          bas.entreCarteEtPied + 'px entre la carte et le pied');
     await court.close();
 
     var jeu = await h.newPage({ viewport: { width: 390, height: 600 } });
@@ -86,6 +106,72 @@ module.exports = {
     check('une page de jeu, elle, ne défile pas',
           (await jeu.evaluate(function () { return window.scrollY; })) === 0);
     await jeu.close();
+
+    t.section('Les règles, déclarées et atteignables');
+    /* Chaque jeu doit savoir expliquer ses propres règles : c'est le manifeste
+       qui les porte, comme il porte ses succès et ses réglages. */
+    await page.goto(h.hub());
+    await page.waitForTimeout(300);
+    var regles = await page.evaluate(function () {
+      return (window.GameRegistry || []).map(function (entry) {
+        var m = (window.Games || {})[entry.id] || {};
+        var r = m.rules;
+        return {
+          id: entry.id,
+          nom: m.name,
+          a: !!r,
+          but: !!(r && typeof r.goal === 'string' && r.goal.length > 15),
+          comment: !!(r && r.how && r.how.length >= 3),
+          marque: !!(r && r.scoring && r.scoring.length >= 1),
+          vides: r ? [].concat(r.how || [], r.scoring || [])
+                       .filter(function (l) { return typeof l !== 'string' || l.length < 15; }).length : 0
+        };
+      });
+    });
+    var sansRegles = regles.filter(function (r) { return !r.a; });
+    var incomplets = regles.filter(function (r) { return r.a && !(r.but && r.comment && r.marque); });
+    var bavures = regles.filter(function (r) { return r.vides > 0; });
+    check('les ' + regles.length + ' jeux déclarent leurs règles', sansRegles.length === 0,
+          sansRegles.map(function (r) { return r.id; }).join(', ') || undefined);
+    check('chacune a un but, au moins trois points de règle et un barème',
+          incomplets.length === 0, incomplets.map(function (r) { return r.id; }).join(', ') || undefined);
+    check('aucune ligne vide ou bâclée', bavures.length === 0,
+          bavures.map(function (r) { return r.id + ' (' + r.vides + ')'; }).join(', ') || undefined);
+
+    // Et le « i » du bandeau les ouvre, sur n'importe quel jeu.
+    var echantillon = ['snake', 'cells', 'tower'];
+    for (var g = 0; g < echantillon.length; g++) {
+      var onglet = await h.newPage({ viewport: { width: 390, height: 740 } });
+      await onglet.goto(h.url(echantillon[g]));
+      await onglet.waitForTimeout(350);
+      var bouton = await onglet.$eval('#infoBtn', function (el) {
+        return el.getBoundingClientRect().width > 0;
+      }).catch(function () { return false; });
+      await onglet.click('#infoBtn');
+      await onglet.waitForTimeout(200);
+      var vu = await onglet.evaluate(function () {
+        var box = document.getElementById('sheetTabs');
+        return {
+          ouvert: !document.getElementById('sheet').hidden,
+          actif: (document.querySelector('.tab.is-active') || {}).textContent,
+          but: (document.querySelector('.rule-goal') || {}).textContent || '',
+          puces: document.querySelectorAll('.rule-list li').length,
+          // Cinq onglets : sur un écran étroit ils doivent passer à la ligne,
+          // pas disparaître dans un défilement que rien n'annonce.
+          tousVisibles: Array.prototype.every.call(box.children, function (b) {
+            var r = b.getBoundingClientRect(), bx = box.getBoundingClientRect();
+            return r.left >= bx.left - 1 && r.right <= bx.right + 1 &&
+                   r.top >= bx.top - 1 && r.bottom <= bx.bottom + 1;
+          })
+        };
+      });
+      check(echantillon[g] + ' : le bouton « i » est là et ouvre les règles',
+            bouton && vu.ouvert && vu.actif === 'Règles', vu.actif);
+      check(echantillon[g] + ' : le but et les points de règle sont rendus',
+            vu.but.length > 15 && vu.puces >= 6, vu.puces + ' puces');
+      check(echantillon[g] + ' : les cinq onglets restent tous visibles', vu.tousVisibles);
+      await onglet.close();
+    }
 
     t.section('Le panneau tient dans le plateau');
     /* Le panneau est enfermé dans un plateau carré, donc plafonné : dans sa

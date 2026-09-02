@@ -39,6 +39,22 @@ Games.snake = (function () {
         hint: 'Rien ne tue, et le combo monte à chaque pomme.' }
     ],
 
+    /* Les règles, telles que le panneau « i » les affiche. */
+    rules: {
+      goal: 'Mange les pommes pour grandir, sans te mordre la queue.',
+      how: [
+        'Le serpent avance tout seul : les flèches ne font que le tourner.',
+        'Chaque pomme ramassée l\'allonge d\'une case — et l\'espace se réduit d\'autant.',
+        'Se mordre soi-même est mortel ; les murs le sont selon la difficulté.',
+        'Les bonus ont chacun leur effet : l\'or vaut cinq pommes mais s\'évapore, le ralenti calme le jeu, le fantôme laisse tout traverser.'
+      ],
+      scoring: [
+        'Une pomme vaut 10 points, une pièce d\'or 50.',
+        'Enchaîner deux prises à moins de 2,6 s fait monter le combo, jusqu\'à ×5, qui multiplie chaque prise.',
+        'Le combo retombe à ×1 dès qu\'on traîne.'
+      ],
+      note: 'En mode zen rien ne tue, et le combo n\'a plus de chronomètre : il monte d\'un cran par pomme et ne redescend jamais.'
+    },
     settings: [
       { key: 'grid', type: 'choice', label: 'Taille de la grille', default: 'medium',
         options: [

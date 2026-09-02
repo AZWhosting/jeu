@@ -143,6 +143,20 @@ Games.crates = (function () {
         hint: 'Les douze tableaux à la suite, et {N} passe au suivant.' }
     ],
 
+    rules: {
+      goal: 'Pousse chaque caisse sur une cible.',
+      how: [
+        'Le pousseur avance aux flèches et pousse la caisse qu\'il rencontre.',
+        'On ne pousse jamais deux caisses à la fois, ni une caisse contre un mur.',
+        'Une caisse ne se tire pas : il faut se placer du bon côté avant.',
+        'Annuler fait partie du jeu — le dernier pas se reprend autant de fois qu\'il le faut.'
+      ],
+      scoring: [
+        'Un tableau résolu vaut 100 points.',
+        'Chaque pas économisé sous le nombre conseillé en rapporte 10 de plus.'
+      ],
+      note: 'Les douze tableaux sont prouvés solubles, et le nombre de pas conseillé est celui de la meilleure solution. Une caisse coincée dans un coin est signalée : elle ne bougera plus.'
+    },
     settings: [
       { key: 'deadlock', type: 'toggle', label: 'Signaler les caisses bloquées', default: true,
         note: 'Marque en rouge une caisse coincée dans un coin' },
