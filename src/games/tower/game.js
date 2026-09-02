@@ -39,6 +39,7 @@
   var PROBES_START = 2;
   var PROBES_MAX = 5;
   var FALL_HOLD = 1100;         // temps d'arrêt sur le piège ouvert
+  var SWING_MS = 460;           // durée d'ouverture du battant
   var SUMMIT_HOLD = 1500;
   var RESTART_GRACE = 700;
 
@@ -56,7 +57,11 @@
   var state = 'menu';           // menu | playing | falling | paused | over
   var difficulty = progress.difficulty();
   var level, doors, trap, revealed, pot, probes, probedThisClimb;
-  var lives, score, pending, openedDoor, holdUntil;
+  var lives, score, pending, holdUntil;
+  /* Le battant en train de s'ouvrir : on retient la porte choisie et le nombre
+     de portes du palier quitté, pour l'animer même une fois le palier suivant
+     distribué. */
+  var swing = null;
   var particles;
   var run, runStartedAt, runCommitted, overSince = 0;
 
@@ -67,14 +72,21 @@
   function step() { return ladder()[Math.min(level, ladder().length) - 1]; }
   function atSummit() { return level > ladder().length; }
 
-  /* Ce que le palier courant propose, tel qu'il est affiché au joueur. */
+  /* Ce que le palier courant propose, tel qu'il est affiché au joueur.
+
+     Il n'y a qu'un piège par palier : dès qu'une porte est connue, le palier
+     est franchissable à coup sûr — on prend la porte sûre, ou on évite le
+     piège. La probabilité affichée en tient compte, sans quoi elle mentirait
+     au joueur juste après qu'il a dépensé une sonde. */
   function odds() {
     if (atSummit()) { return null; }
     var s = step();
-    var chance = (s.doors - 1) / s.doors;
+    var connue = Object.keys(revealed).length > 0;
+    var chance = connue ? 1 : (s.doors - 1) / s.doors;
     return {
       doors: s.doors,
       chance: chance,
+      certain: connue,
       nextPot: s.pot,
       expected: chance * s.pot,
       held: pot,
@@ -90,12 +102,25 @@
     trap = Math.floor(Math.random() * doors);
     revealed = {};
     pending = -1;
-    openedDoor = -1;
+  }
+
+  /* Le battant est-il encore en train de s'ouvrir ? */
+  function swinging() {
+    if (!swing) { return false; }
+    var age = performance.now() - swing.at;
+    return age < (swing.trap ? FALL_HOLD : SWING_MS + 140);
+  }
+
+  function swingOpenness() {
+    if (!swing) { return 0; }
+    var t = clamp((performance.now() - swing.at) / SWING_MS, 0, 1);
+    return 1 - Math.pow(1 - t, 3);          // départ franc, arrivée douce
   }
 
   function newClimb() {
     level = 1;
     pot = 0;
+    swing = null;
     probedThisClimb = false;
     deal();
     renderHud();
@@ -122,6 +147,9 @@
   function open(door) {
     if (state !== 'playing' || atSummit()) { return false; }
     if (door < 0 || door >= doors) { return false; }
+    // Tant que le battant s'ouvre, le palier suivant n'est pas encore visible :
+    // on ne laisse pas ouvrir une porte que le joueur ne voit pas.
+    if (swinging()) { return false; }
 
     // Au-delà du basculement, un réglage demande confirmation : deux fois la
     // même porte. Il vaut mieux hésiter par choix que par accident.
@@ -134,7 +162,7 @@
 
     if (door === trap) { fall(door); return false; }
 
-    openedDoor = door;
+    swing = { door: door, doors: doors, trap: false, at: performance.now() };
     pot = step().pot;
     level++;
     run.climbs++;
@@ -149,14 +177,15 @@
   }
 
   function fall(door) {
-    openedDoor = door;
+    swing = { door: door, doors: doors, trap: true, at: performance.now() };
     state = 'falling';
     holdUntil = performance.now() + FALL_HOLD;
     run.traps++;
     pot = 0;
     audio.fail();
     shake();
-    floatText('Piège — le pot est perdu', ramp().trap);
+    // Le message est écrit sous les portes, à la place du calcul du palier :
+    // le redire en texte flottant le dirait deux fois.
 
     if (!conf().forgiving) { lives--; }
     renderHud();
@@ -220,6 +249,7 @@
   function finish(won) {
     state = 'over';
     overSince = performance.now();
+    swing = null;
     var result = commitRun();
     var beaten = !!(result && result.record);
     renderHud();
@@ -312,7 +342,7 @@
     el.textContent = text;
     el.style.color = color;
     el.style.left = '50%';
-    el.style.top = '30%';
+    el.style.top = '21%';
     effects.appendChild(el);
     setTimeout(function () { el.remove(); }, 1000);
   }
@@ -321,21 +351,28 @@
   /* Géométrie                                                           */
   /* ------------------------------------------------------------------ */
 
-  function geometry() {
+  /* `count` permet de mesurer le palier qu'on vient de quitter, le temps que
+     son battant finisse de s'ouvrir. */
+  function geometry(count) {
     var s = loop.size();
+    var n = count || doors || 1;
     var pad = s * 0.035;
-    var doorY = s * 0.30;
-    var doorH = s * 0.32;
-    var gap = s * 0.018;
-    var doorW = (s - pad * 2 - gap * (doors - 1)) / doors;
+    var doorY = s * 0.275;
+    var doorH = s * 0.375;
+    var gap = s * 0.022;
+    // Une porte reste une porte : on plafonne sa largeur plutôt que de l'étirer
+    // quand il n'en reste que deux.
+    var doorW = Math.min((s - pad * 2 - gap * (n - 1)) / n, doorH * 0.54);
+    var rowW = doorW * n + gap * (n - 1);
     var barH = s * 0.085;
     return { size: s, pad: pad, doorY: doorY, doorH: doorH, gap: gap, doorW: doorW,
+             rowX: (s - rowW) / 2, rowW: rowW, count: n,
              barY: s - pad - barH, barH: barH };
   }
 
-  function doorBox(i) {
-    var g = geometry();
-    return { x: g.pad + i * (g.doorW + g.gap), y: g.doorY, w: g.doorW, h: g.doorH };
+  function doorBox(i, count) {
+    var g = geometry(count);
+    return { x: g.rowX + i * (g.doorW + g.gap), y: g.doorY, w: g.doorW, h: g.doorH };
   }
 
   function buttons(g) {
@@ -395,6 +432,86 @@
 
   function money(v) { return String(Math.round(v)); }
 
+  /* Une porte : l'embrasure, le dormant, puis le battant qui pivote sur ses
+     gonds. Le battant est simplement rétréci vers le gond — de face, une porte
+     qui s'ouvre vers soi ne se voit pas autrement. */
+  function drawDoor(box, o) {
+    var x = box.x, y = box.y, w = box.w, h = box.h;
+    var r = Math.min(w, h) * 0.07;
+    var open = o.open || 0;
+    var teinte = o.teinte || o.couleur;
+
+    ctx.save();
+
+    // L'embrasure : ce qu'on voit derrière le battant.
+    ctx.fillStyle = o.dedans ? o.dedans : 'rgba(4, 8, 16, 0.92)';
+    if (o.dedans && open > 0.05) {
+      ctx.shadowColor = o.dedans;
+      ctx.shadowBlur = 30 * open;
+    }
+    roundRect(x, y, w, h, r);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Le dormant.
+    ctx.globalAlpha = o.eteinte ? 0.4 : 1;
+    ctx.strokeStyle = o.pret ? ramp().pot : (o.teinte || ramp().edge);
+    ctx.lineWidth = Math.max(1.5, w * (o.pret ? 0.06 : 0.04));
+    roundRect(x, y, w, h, r);
+    ctx.stroke();
+
+    // Le battant, rétréci vers le gond à mesure qu'il s'ouvre.
+    var jeu = w * 0.06;
+    var lx = x + jeu, ly = y + jeu;
+    var lw = (w - jeu * 2) * (1 - open * 0.82);
+    var lh = h - jeu * 2;
+    if (lw > 1.5) {
+      ctx.globalAlpha = o.eteinte ? 0.28 : (o.marque || o.pret || open > 0 ? 1 : 0.62);
+      if (!o.eteinte && (o.marque || o.pret)) { ctx.shadowColor = teinte; ctx.shadowBlur = 16; }
+      ctx.fillStyle = teinte;
+      roundRect(lx, ly, lw, lh, r * 0.7);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Deux panneaux creusés, qui disent « porte » plus que tout le reste.
+      ctx.fillStyle = 'rgba(6, 12, 22, 0.34)';
+      var px = lx + lw * 0.16, pw = lw * 0.68;
+      if (pw > 2) {
+        roundRect(px, ly + lh * 0.09, pw, lh * 0.36, r * 0.4);
+        ctx.fill();
+        roundRect(px, ly + lh * 0.55, pw, lh * 0.36, r * 0.4);
+        ctx.fill();
+      }
+
+      // La poignée, du côté qui s'ouvre.
+      ctx.fillStyle = 'rgba(10, 16, 26, 0.75)';
+      ctx.beginPath();
+      ctx.arc(lx + lw * 0.82, ly + lh * 0.5, Math.max(1.5, lw * 0.075), 0, Math.PI * 2);
+      ctx.fill();
+
+      // Les gonds, du côté opposé.
+      var gh = Math.max(2.5, lh * 0.06);
+      ctx.fillStyle = 'rgba(226, 236, 255, 0.55)';
+      [0.2, 0.8].forEach(function (t) {
+        ctx.fillRect(lx - jeu * 0.55, ly + lh * t - gh / 2, Math.max(2, jeu * 1.1), gh);
+      });
+
+      // La plaque : le numéro de la porte, ou ce que la sonde en a dit.
+      if (open < 0.35 && lw > w * 0.4) {
+        ctx.fillStyle = 'rgba(6, 14, 24, 0.82)';
+        var plw = lw * 0.46, plh = lh * 0.17;
+        roundRect(lx + (lw - plw) / 2, ly + lh * 0.30 - plh / 2, plw, plh, plh * 0.32);
+        ctx.fill();
+        ctx.fillStyle = o.teinte || '#e8eefc';
+        ctx.font = '700 ' + Math.round(plh * 0.78) + 'px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(o.marque || String(o.numero), lx + lw / 2, ly + lh * 0.305);
+      }
+    }
+    ctx.restore();
+  }
+
   function draw(now, alpha, dt) {
     var g = geometry();
     updateParticles(dt);
@@ -429,39 +546,25 @@
     ctx.fillText(money(pot), g.size / 2, g.size * 0.205);
     ctx.restore();
 
-    // Les portes.
-    for (var i = 0; i < doors; i++) {
-      var box = doorBox(i);
-      var seen = revealed[i];
-      var shown = state === 'falling' && openedDoor >= 0;
-      var isTrap = i === trap;
-      var color = doorColor(i);
-
-      ctx.save();
-      if (shown && isTrap) { color = ramp().trap; }
-      else if (seen === true) { color = ramp().trap; }
-      else if (seen === false) { color = ramp().safe; }
-
-      var lit = seen !== undefined || (shown && isTrap) || pending === i;
-      ctx.globalAlpha = lit ? 1 : 0.34;
-      if (lit) { ctx.shadowColor = color; ctx.shadowBlur = 20; }
-      ctx.fillStyle = color;
-      roundRect(box.x, box.y, box.w, box.h, box.w * 0.16);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = pending === i ? ramp().pot : ramp().edge;
-      ctx.lineWidth = pending === i ? 3 : 1;
-      ctx.stroke();
-
-      ctx.fillStyle = lit ? 'rgba(6, 18, 26, 0.85)' : '#e8eefc';
-      ctx.font = '700 ' + Math.round(box.w * 0.34) + 'px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      var mark = seen === true ? '✕' : (seen === false ? '✓' : String(i + 1));
-      if (shown && isTrap) { mark = '✕'; }
-      ctx.fillText(mark, box.x + box.w / 2, box.y + box.h * 0.54);
-      ctx.restore();
+    // Les portes. Tant qu'un battant s'ouvre, c'est le palier quitté qu'on voit :
+    // le suivant n'apparaît qu'une fois la porte franchie.
+    var vue = swinging() ? swing : null;
+    var nb = vue ? vue.doors : doors;
+    for (var i = 0; i < nb; i++) {
+      var box = doorBox(i, nb);
+      var choisie = vue && i === vue.door;
+      var seen = vue ? undefined : revealed[i];
+      drawDoor(box, {
+        numero: i + 1,
+        couleur: doorColor(i),
+        open: choisie ? swingOpenness() : 0,
+        // Derrière un battant ouvert : le vide rassurant, ou le piège.
+        dedans: choisie ? (vue.trap ? ramp().trap : ramp().safe) : null,
+        marque: seen === true ? '✕' : (seen === false ? '✓' : null),
+        teinte: seen === true ? ramp().trap : (seen === false ? ramp().safe : null),
+        pret: pending === i,
+        eteinte: !!vue && !choisie
+      });
     }
 
     // Ce que coûte et ce que rapporte le prochain palier, en toutes lettres.
@@ -469,17 +572,23 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     var lineY = g.doorY + g.doorH + g.size * 0.055;
-    if (o) {
+    if (state === 'falling' && swing && swing.trap) {
+      ctx.fillStyle = ramp().trap;
+      ctx.font = '700 ' + Math.round(g.size * 0.040) + 'px system-ui, sans-serif';
+      ctx.fillText('Piège — le pot est perdu', g.size / 2, lineY);
+    } else if (o) {
       ctx.fillStyle = '#e8eefc';
       ctx.font = '600 ' + Math.round(g.size * 0.038) + 'px system-ui, sans-serif';
-      ctx.fillText('Monter : ' + Math.round(o.chance * 100) + ' % · le pot passerait à ' +
-                   money(o.nextPot), g.size / 2, lineY);
+      ctx.fillText('Monter : ' + (o.certain ? 'à coup sûr' : Math.round(o.chance * 100) + ' %') +
+                   ' · le pot passerait à ' + money(o.nextPot), g.size / 2, lineY);
       if (progress.getSetting('odds')) {
         ctx.font = '600 ' + Math.round(g.size * 0.030) + 'px system-ui, sans-serif';
         ctx.fillStyle = o.worth ? ramp().safe : ramp().trap;
-        var verdict = pot > 0
-          ? 'en moyenne ' + money(o.expected) + ' contre ' + money(pot) + ' déjà acquis'
-          : 'en moyenne ' + money(o.expected) + ' — rien à perdre encore';
+        var verdict;
+        if (o.certain) { verdict = 'la sonde a parlé : ce palier est acquis'; }
+        else if (pot > 0) {
+          verdict = 'en moyenne ' + money(o.expected) + ' contre ' + money(pot) + ' déjà acquis';
+        } else { verdict = 'en moyenne ' + money(o.expected) + ' — rien à perdre encore'; }
         ctx.fillText(verdict, g.size / 2, lineY + g.size * 0.048);
       }
     }
@@ -655,8 +764,11 @@
         lives: lives,
         probes: probes,
         revealed: JSON.parse(JSON.stringify(revealed)),
+        swinging: swinging(),
+        swing: swing ? { door: swing.door, doors: swing.doors, trap: swing.trap } : null,
         tipping: tipping(),
         chance: o ? o.chance : null,
+        certain: o ? o.certain : null,
         nextPot: o ? o.nextPot : null,
         expected: o ? o.expected : null,
         worth: o ? o.worth : null,
@@ -685,6 +797,7 @@
     setLevel: function (k) {
       if (state === 'falling') { state = 'playing'; }
       if (state !== 'playing') { return false; }
+      swing = null;                    // aucun battant en suspens
       level = clamp(k, 1, ladder().length);
       pot = level > 1 ? ladder()[level - 2].pot : 0;
       deal();

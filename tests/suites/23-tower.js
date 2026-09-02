@@ -187,6 +187,15 @@ module.exports = {
           ', piège en ' + verite);
     check('elle se dépense', apresSonde.probes === avantSonde.probes - 1,
           avantSonde.probes + ' → ' + apresSonde.probes);
+    /* Un seul piège par palier : une porte connue suffit à passer à coup sûr,
+       et le chiffre affiché doit le dire — sinon il mentirait au joueur juste
+       après qu'il a dépensé sa sonde. */
+    check('le palier devient certain, et l\'affichage le dit',
+          apresSonde.certain === true && apresSonde.chance === 1,
+          'chance ' + apresSonde.chance + ', certain ' + apresSonde.certain);
+    check('avant la sonde, il ne l\'était pas',
+          avantSonde.certain === false && avantSonde.chance < 1,
+          'chance ' + avantSonde.chance);
 
     t.section('Confirmer au-delà du basculement');
     await set('confirm', true);

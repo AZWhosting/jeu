@@ -443,8 +443,15 @@ deviendrait le pot, et **l'espérance du coup** — en vert tant que monter rest
 rouge après. Le joueur ne parie jamais à l'aveugle. Et à partir du palier annoncé, monter
 rapporte en moyenne moins que ce qu'on a déjà : c'est là que le jeu commence vraiment.
 
-Une **sonde** ouvre le rideau sur une porte sans l'ouvrir — elle change le calcul, et il
-en reste rarement assez. On en gagne une à chaque pot encaissé.
+Les portes sont de vraies portes : dormant, battant à panneaux, poignée et gonds — et le
+battant pivote quand on l'ouvre, sur du vert si le passage est libre, sur du rouge si
+c'est le piège. Le palier suivant n'apparaît qu'une fois la porte franchie.
+
+Une **sonde** ouvre le rideau sur une porte sans l'ouvrir. Comme il n'y a qu'un piège par
+palier, **une seule porte connue suffit à passer à coup sûr** — on prend la porte sûre, ou
+on évite le piège — et l'affichage le dit alors franchement au lieu de continuer à
+annoncer une probabilité qui ne s'applique plus. On gagne une sonde à chaque pot
+encaissé, et il en reste rarement assez.
 
 **Ce que les tests prouvent, et qui compte plus qu'une promesse :**
 

@@ -88,7 +88,7 @@ Games.tower = (function () {
         'À chaque palier, une porte sur n est piégée : la porte piégée est tirée au sort avant que tu ne choisisses.',
         'Passer fait grossir le pot ; tomber le fait perdre, et coûte une vie.',
         'Encaisser met le pot à l\'abri dans le score et renvoie la manche au premier palier.',
-        'Une sonde ouvre le rideau sur une porte sans l\'ouvrir. On en gagne une à chaque pot encaissé.'
+        'Une sonde ouvre le rideau sur une porte sans l\'ouvrir. Comme il n\'y a qu\'un piège par palier, une seule porte connue suffit à passer à coup sûr — on prend la porte sûre, ou on évite le piège. On gagne une sonde à chaque pot encaissé.'
       ],
       scoring: [
         'Le pot est fixé par le palier atteint, et lui seul : il est annoncé avant chaque choix.',
