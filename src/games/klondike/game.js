@@ -222,28 +222,46 @@
     run.best = Math.max(run.best, dealCards);
   }
 
-  /* Monte d'office ce qui ne peut plus servir à personne. */
-  function safeHome(card) {
+  /* Le régime de montée automatique. L'ancien réglage était un interrupteur :
+     on le relit pour ceux qui l'ont déjà enregistré. */
+  function autoMode() {
+    var v = progress.getSetting('auto');
+    if (v === true) { return 'all'; }
+    if (v === false) { return 'off'; }
+    return v || 'all';
+  }
+
+  /* Toute carte qui suit sa fondation : l'as, puis le 2, puis le 3… */
+  function fitsHome(card) {
     if (keptDown[card]) { return false; }   // le joueur l'a voulue en bas
+    return found[Cards.suit(card)] === Cards.rank(card);
+  }
+
+  /* La règle prudente : une carte ne monte que si plus personne ne peut avoir
+     besoin d'elle pour construire en bas. Un 3 noir sert encore tant qu'un 2
+     rouge traîne quelque part. */
+  function safeHome(card) {
+    if (!fitsHome(card)) { return false; }
     var r = Cards.rank(card);
-    if (found[Cards.suit(card)] !== r) { return false; }
     if (r <= 1) { return true; }
     var o1 = Cards.isRed(card) ? 0 : 1, o2 = Cards.isRed(card) ? 3 : 2;
     return found[o1] >= r && found[o2] >= r;
   }
 
   function settle(force) {
-    if (!force && !progress.getSetting('auto')) { return 0; }
+    var mode = force ? 'all' : autoMode();
+    if (mode === 'off') { return 0; }
+    var monte = mode === 'safe' ? safeHome : fitsHome;
     var moved = 0, again = true;
     while (again) {
       again = false;
-      if (waste.length && safeHome(waste[waste.length - 1])) {
+      if (waste.length && monte(waste[waste.length - 1])) {
         homeBurst(Cards.suit(waste[waste.length - 1]));
         toFoundation(waste.pop()); again = true; moved++;
       }
       for (var j = 0; j < piles.length; j++) {
         var pile = piles[j];
-        if (pile.length && pile[pile.length - 1].up && safeHome(pile[pile.length - 1].c)) {
+        if (pile.length && pile[pile.length - 1].up && monte(pile[pile.length - 1].c)) {
           homeBurst(Cards.suit(pile[pile.length - 1].c));
           toFoundation(pile.pop().c); again = true; moved++;
         }
@@ -916,7 +934,11 @@
     onSettingChange: function (name) {
       if (name === 'theme') { Core.applyTheme(progress); }
       if (name === 'sound' && toolbar) { toolbar.syncSound(); }
-      if (name === 'auto' && state === 'playing') { settle(false); renderHud(); }
+      if (name === 'auto' && state === 'playing') {
+        settle(false);
+        if (complete()) { win(); } else if (readyToFinish()) { startCascade(); }
+        renderHud();
+      }
     }
   });
 
@@ -977,6 +999,7 @@
         waste: waste.slice(),
         found: found.slice(),
         hidden: hidden(),
+        auto: autoMode(),
         keptDown: Object.keys(keptDown).map(Number),
         cascading: !!cascade,
         score: score,

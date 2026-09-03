@@ -74,7 +74,8 @@ Games.klondike = (function () {
         'Une suite de cartes retournées se déplace d\'un seul geste, quelle que soit sa longueur.',
         'Découvrir la carte cachée d\'une colonne la retourne aussitôt.',
         'La pioche retourne une ou trois cartes selon la difficulté ; seule celle du dessus se joue — mais elle se glisse dans une colonne comme n\'importe quelle autre, pour débloquer ce qui est dessous.',
-        'Une carte déjà montée peut redescendre dans une colonne pour dégager un passage : la montée automatique la laisse alors où tu l\'as mise.'
+        'Une carte déjà montée peut redescendre dans une colonne pour dégager un passage : la montée automatique la laisse alors où tu l\'as mise.',
+        'La montée automatique a trois régimes : toutes les cartes qui suivent leur fondation, seulement celles qui ne peuvent plus servir, ou aucune.'
       ],
       scoring: [
         'Une carte montée sur une fondation vaut 10 points, une carte retournée 5.',
@@ -85,8 +86,21 @@ Games.klondike = (function () {
     },
 
     settings: [
-      { key: 'auto', type: 'toggle', label: 'Montée automatique', default: true,
-        note: 'Les cartes qui ne servent plus rejoignent seules leur fondation' },
+      { key: 'auto', type: 'choice', label: 'Montée automatique', default: 'all',
+        options: [
+          { value: 'all',  label: 'Toutes' },
+          { value: 'safe', label: 'Prudente' },
+          { value: 'off',  label: 'Aucune' }
+        ],
+        hint: function (value) {
+          if (value === 'off') { return 'Aucune carte ne monte seule : tout se joue à la main.'; }
+          if (value === 'safe') {
+            return 'Ne monte que les cartes qui ne peuvent plus servir à construire — ' +
+                   'un 3 attend que les as et les 2 de l\'autre couleur soient rangés.';
+          }
+          return 'Toute carte qui suit sa fondation y monte aussitôt : l\'as, puis le 2, ' +
+                 'puis le 3… Rapide, mais une carte montée trop tôt peut manquer en bas.';
+        } },
       { key: 'guide', type: 'toggle', label: 'Guider le dépôt', default: true,
         note: 'Éclaire les emplacements qui acceptent la carte tenue' }
     ],

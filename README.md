@@ -498,12 +498,22 @@ n'est servie ; ici une partie du jeu est cachée, et **toutes les donnes ne se g
 pas**. C'est la nature du Klondike, et le jeu le dit dans ses règles plutôt que de le
 laisser découvrir. Le mode facile est celui qui en laisse passer le plus.
 
-**Les cartes montent seules** : dès qu'une carte ne peut plus servir à personne, elle
-rejoint sa fondation sans qu'on le demande. Mais une carte déjà montée peut **redescendre
-dans une colonne** pour dégager un passage — et la montée automatique la laisse alors où
-on l'a mise, sinon elle la reprendrait aussitôt et le déblocage serait impossible. La
-carte tirée de la pioche se glisse elle aussi dans une colonne, comme n'importe quelle
-autre.
+**Les cartes montent seules.** L'as posé, le 2 de la même enseigne le suit aussitôt, puis
+le 3, puis le 4 — sans qu'on y touche. Trois régimes, au choix :
+
+| Régime | Ce qui monte |
+|---|---|
+| **Toutes** (par défaut) | Toute carte qui suit sa fondation, dès qu'elle est dégagée |
+| Prudente | Seulement les cartes qui ne peuvent plus servir à construire en bas |
+| Aucune | Rien : tout se joue à la main |
+
+*Toutes* va vite, mais une carte montée trop tôt peut manquer en bas — d'où *Prudente*,
+qui garde un 3 noir tant qu'un 2 rouge traîne quelque part.
+
+Une carte déjà montée peut **redescendre dans une colonne** pour dégager un passage — et
+la montée automatique la laisse alors où on l'a mise, sinon elle la reprendrait aussitôt
+et le déblocage serait impossible. La carte tirée de la pioche se glisse elle aussi dans
+une colonne, comme n'importe quelle autre.
 
 Quand plus rien n'est caché et que la pioche est vide, **le jeu monte tout seul ce qui
 reste** — mais seulement s'il va réellement jusqu'au bout : il simule la remontée avant

@@ -39,7 +39,7 @@ module.exports = {
 
     /* La montée automatique enlève aussitôt un as servi sur le dessus : pour
        mesurer la donne elle-même, on la coupe et on redistribue. */
-    await page.evaluate(function () { window.Progress.setSetting('auto', false); });
+    await page.evaluate(function () { window.Progress.setSetting('auto', 'off'); });
     await api('dealSeed', 4242);
     var s = await snap();
     check('sept colonnes de 1 à 7 cartes',
@@ -123,15 +123,15 @@ module.exports = {
 
     /* ---------------------------------------------------------------- */
     t.section('Les cartes remontent seules');
-    check('la montée automatique est active d\'origine',
+    check('la montée automatique monte tout, d\'origine',
           await page.evaluate(function () {
             // Le réglage a été coupé plus haut pour mesurer la donne : on lit
             // ce que le manifeste déclare, qui est ce qu'un joueur trouvera.
             var def = window.Progress.manifest.settings
               .filter(function (r) { return r.key === 'auto'; })[0];
             return def.default;
-          }) === true);
-    await page.evaluate(function () { window.Progress.setSetting('auto', true); });
+          }) === 'all');
+    await page.evaluate(function () { window.Progress.setSetting('auto', 'all'); });
 
     await page.evaluate(function () {
       window.__neonKlondike.setBoard({
@@ -145,6 +145,34 @@ module.exports = {
     check('un as découvert rejoint sa fondation sans qu\'on le demande',
           monte.found[0] === 1 && monte.piles[0].length === 0, monte.found.join(','));
 
+    /* Et la suite avec : l'as posé, le 2 de la même enseigne monte, puis le 3,
+       puis le 4. C'est ce que « Toutes » veut dire. */
+    var suite = function (mode) {
+      return page.evaluate(function (m) {
+        var K = window.__neonKlondike;
+        window.Progress.setSetting('auto', m);
+        K.setBoard({
+          piles: [[{ c: 1 * 4 + 0, up: true }],     // 2♠
+                  [{ c: 2 * 4 + 0, up: true }],     // 3♠
+                  [{ c: 3 * 4 + 0, up: true }],     // 4♠
+                  [{ c: 12 * 4 + 1, up: true }], [], [], []],
+          stock: [], waste: [], found: [1, 0, 0, 0] // as de pique déjà montée
+        });
+        K.play({ t: 'pile', i: 3, n: 1 }, { t: 'pile', i: 4 });  // un coup quelconque
+        return K.snapshot().found.slice();
+      }, mode);
+    };
+    var toutes = await suite('all');
+    check('« Toutes » : le 2, le 3 et le 4 suivent l\'as sans qu\'on y touche',
+          toutes.join(',') === '4,0,0,0', toutes.join(','));
+    var prudente = await suite('safe');
+    check('« Prudente » : le 2 monte, le 3 reste — il peut encore servir en bas',
+          prudente.join(',') === '2,0,0,0', prudente.join(','));
+    var aucune = await suite('off');
+    check('« Aucune » : rien ne bouge tout seul', aucune.join(',') === '1,0,0,0',
+          aucune.join(','));
+    await page.evaluate(function () { window.Progress.setSetting('auto', 'all'); });
+
     t.section('Et une carte redescendue reste en bas');
     /* Sans quoi la montée automatique reprendrait aussitôt la carte qu'on vient
        de descendre pour se débloquer, et le déblocage serait impossible. */
@@ -155,6 +183,7 @@ module.exports = {
         stock: [], waste: [], found: [1, 0, 0, 0]
       });
     }, C);
+    // Même avec la montée la plus large, une carte descendue exprès reste en bas.
     check('l\'as redescend de sa fondation sur le deux rouge',
           await api('play', { t: 'found', i: 0 }, { t: 'pile', i: 0 }) === true);
     var repris = await snap();
@@ -201,7 +230,7 @@ module.exports = {
     await page.click('#playBtn');
     await page.waitForTimeout(200);
     // Sans montée automatique : on veut compter la pioche, pas ce qu'elle perd.
-    await page.evaluate(function () { window.Progress.setSetting('auto', false); });
+    await page.evaluate(function () { window.Progress.setSetting('auto', 'off'); });
     await api('dealSeed', 777);
     check('la pioche donne trois cartes en normal', (await snap()).pull === 3);
     await api('drawStock');
@@ -272,7 +301,7 @@ module.exports = {
     await page.click('.choice[data-diff="hard"]');
     await page.click('#playBtn');
     await page.waitForTimeout(200);
-    await page.evaluate(function () { window.Progress.setSetting('auto', false); });
+    await page.evaluate(function () { window.Progress.setSetting('auto', 'off'); });
     await api('dealSeed', 909);
     check('deux retournements en difficile', (await snap()).redealLimit === 2);
     var limite = await page.evaluate(function () {
