@@ -498,6 +498,17 @@ n'est servie ; ici une partie du jeu est cachée, et **toutes les donnes ne se g
 pas**. C'est la nature du Klondike, et le jeu le dit dans ses règles plutôt que de le
 laisser découvrir. Le mode facile est celui qui en laisse passer le plus.
 
+**Les cartes montent seules** : dès qu'une carte ne peut plus servir à personne, elle
+rejoint sa fondation sans qu'on le demande. Mais une carte déjà montée peut **redescendre
+dans une colonne** pour dégager un passage — et la montée automatique la laisse alors où
+on l'a mise, sinon elle la reprendrait aussitôt et le déblocage serait impossible. La
+carte tirée de la pioche se glisse elle aussi dans une colonne, comme n'importe quelle
+autre.
+
+Quand plus rien n'est caché et que la pioche est vide, **le jeu monte tout seul ce qui
+reste** — mais seulement s'il va réellement jusqu'au bout : il simule la remontée avant
+de la lancer, pour ne pas se mettre à ranger alors que le joueur cherche encore.
+
 **La pioche rend les cartes dans le même ordre au tour suivant** — c'est ce qui rend le
 jeu jouable, puisqu'on peut compter sur ce qui reviendra, et les tests le vérifient sur
 un cycle complet.

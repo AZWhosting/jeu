@@ -37,6 +37,10 @@ module.exports = {
     await page.click('#playBtn');
     await page.waitForTimeout(250);
 
+    /* La montée automatique enlève aussitôt un as servi sur le dessus : pour
+       mesurer la donne elle-même, on la coupe et on redistribue. */
+    await page.evaluate(function () { window.Progress.setSetting('auto', false); });
+    await api('dealSeed', 4242);
     var s = await snap();
     check('sept colonnes de 1 à 7 cartes',
           s.piles.map(function (p) { return p.length; }).join(',') === '1,2,3,4,5,6,7',
@@ -118,12 +122,87 @@ module.exports = {
           avantFlip.score + ' → ' + apresFlip.score);
 
     /* ---------------------------------------------------------------- */
+    t.section('Les cartes remontent seules');
+    check('la montée automatique est active d\'origine',
+          await page.evaluate(function () {
+            // Le réglage a été coupé plus haut pour mesurer la donne : on lit
+            // ce que le manifeste déclare, qui est ce qu'un joueur trouvera.
+            var def = window.Progress.manifest.settings
+              .filter(function (r) { return r.key === 'auto'; })[0];
+            return def.default;
+          }) === true);
+    await page.evaluate(function () { window.Progress.setSetting('auto', true); });
+
+    await page.evaluate(function () {
+      window.__neonKlondike.setBoard({
+        piles: [[{ c: 0, up: true }], [{ c: 12 * 4 + 0, up: true }], [], [], [], [], []],
+        stock: [], waste: [], found: [0, 0, 0, 0]
+      });
+      window.__neonKlondike.play({ t: 'pile', i: 1, n: 1 }, { t: 'pile', i: 2 });
+    });
+    await page.waitForTimeout(120);
+    var monte = await snap();
+    check('un as découvert rejoint sa fondation sans qu\'on le demande',
+          monte.found[0] === 1 && monte.piles[0].length === 0, monte.found.join(','));
+
+    t.section('Et une carte redescendue reste en bas');
+    /* Sans quoi la montée automatique reprendrait aussitôt la carte qu'on vient
+       de descendre pour se débloquer, et le déblocage serait impossible. */
+    await page.evaluate(function (cartes) {
+      window.__neonKlondike.setBoard({
+        piles: [[{ c: cartes.DEUX_COEUR, up: true }], [{ c: cartes.ROI_PIQUE, up: true }],
+                [], [], [], [], []],
+        stock: [], waste: [], found: [1, 0, 0, 0]
+      });
+    }, C);
+    check('l\'as redescend de sa fondation sur le deux rouge',
+          await api('play', { t: 'found', i: 0 }, { t: 'pile', i: 0 }) === true);
+    var repris = await snap();
+    check('la fondation est retombée à zéro', repris.found[0] === 0, repris.found.join(','));
+    check('et la carte est marquée comme voulue en bas',
+          repris.keptDown.indexOf(0) !== -1, JSON.stringify(repris.keptDown));
+    await api('play', { t: 'pile', i: 1, n: 1 }, { t: 'pile', i: 2 });
+    await page.waitForTimeout(120);
+    check('un coup plus tard, elle n\'est toujours pas remontée',
+          (await snap()).found[0] === 0);
+
+    t.section('La remontée finale, seulement si elle va au bout');
+    // Un as enterré sous un roi : rien ne peut monter, donc rien ne se lance.
+    await page.evaluate(function (cartes) {
+      window.__neonKlondike.setBoard({
+        piles: [[{ c: 0, up: true }, { c: cartes.ROI_PIQUE, up: true }], [], [], [], [], [], []],
+        stock: [], waste: [], found: [0, 0, 0, 0]
+      });
+    }, C);
+    check('rien n\'est caché, mais la remontée ne peut pas aboutir',
+          await api('readyToFinish') === false);
+
+    await page.evaluate(function () {
+      var cols = [[], [], [], [], [], [], []];
+      for (var s = 0; s < 4; s++) {
+        for (var r = 12; r >= 0; r--) { cols[s].push({ c: r * 4 + s, up: true }); }
+      }
+      window.__neonKlondike.setBoard({ piles: cols, stock: [], waste: [], found: [0, 0, 0, 0] });
+    });
+    check('quatre colonnes rangées : la remontée est possible',
+          await api('readyToFinish') === true);
+    var montees = await api('finishNow');
+    await page.waitForTimeout(150);
+    var finie = await snap();
+    check('elle monte les 52 cartes', montees === 52, montees);
+    check('et la réussite est reconnue', finie.complete === true && finie.found.join(',') === '13,13,13,13',
+          finie.found.join(','));
+
+    /* ---------------------------------------------------------------- */
     t.section('La pioche');
     await page.goto(h.url('klondike'));
     await page.waitForTimeout(300);
     await page.click('.choice[data-diff="normal"]');
     await page.click('#playBtn');
     await page.waitForTimeout(200);
+    // Sans montée automatique : on veut compter la pioche, pas ce qu'elle perd.
+    await page.evaluate(function () { window.Progress.setSetting('auto', false); });
+    await api('dealSeed', 777);
     check('la pioche donne trois cartes en normal', (await snap()).pull === 3);
     await api('drawStock');
     check('trois cartes sur la défausse', (await snap()).waste.length === 3);
@@ -145,12 +224,56 @@ module.exports = {
     check('et dans le même ordre qu\'au tour précédent',
           cycle.apres.join(',') === cycle.avant.join(','));
 
+    t.section('La carte visible de la défausse répond partout');
+    /* Avec la pioche par trois, la carte jouable est étalée à droite de son
+       emplacement : elle débordait sur une zone morte, et l'on cliquait dessus
+       sans que rien ne se passe. */
+    var zone = await page.evaluate(function () {
+      var K = window.__neonKlondike, g = K.geometry();
+      var s = K.snapshot();
+      var etale = g.cardW * 0.16 * 0.6;
+      var gauche = K.slotX(1) + (Math.min(s.waste.length, s.pull) - 1) * etale;
+      var y = (g.topY + g.cardH / 2) / g.size;
+      var points = [0.02, 0.25, 0.5, 0.75, 0.98].map(function (t) {
+        return K.locate((gauche + t * g.cardW) / g.size, y);
+      });
+      return { gauche: Math.round(gauche), largeur: Math.round(g.cardW),
+               zones: points.map(function (z) { return z ? z.t : 'rien'; }) };
+    });
+    check('toute la largeur de la carte visible désigne la défausse',
+          zone.zones.every(function (z) { return z === 'waste'; }), zone.zones.join(', '));
+
+    // Et un vrai clic dessus la joue.
+    await page.evaluate(function (cartes) {
+      window.__neonKlondike.setBoard({
+        piles: [[{ c: cartes.ROI_PIQUE, up: true }], [], [], [], [], [], []],
+        stock: [], waste: [cartes.A_PIQUE, cartes.TROIS_PIQUE, cartes.DAME_COEUR], found: [0, 0, 0, 0]
+      });
+    }, C);
+    var pointeur = await page.evaluate(function () {
+      var K = window.__neonKlondike, g = K.geometry();
+      var s = K.snapshot();
+      var etale = g.cardW * 0.16 * 0.6;
+      var gauche = K.slotX(1) + (Math.min(s.waste.length, s.pull) - 1) * etale;
+      var r = document.getElementById('board').getBoundingClientRect();
+      // Vers le bord droit de la carte : la zone qui ne répondait pas.
+      return { x: r.left + gauche + g.cardW * 0.85, y: r.top + g.topY + g.cardH / 2 };
+    });
+    await page.mouse.click(pointeur.x, pointeur.y);
+    await page.waitForTimeout(150);
+    var joue = await snap();
+    check('cliquer près de son bord droit la joue bien',
+          joue.waste.length === 2 && joue.piles[0].length === 2,
+          'défausse ' + joue.waste.length + ', colonne ' + joue.piles[0].length);
+
     t.section('La limite de retournements');
     await page.goto(h.url('klondike'));
     await page.waitForTimeout(300);
     await page.click('.choice[data-diff="hard"]');
     await page.click('#playBtn');
     await page.waitForTimeout(200);
+    await page.evaluate(function () { window.Progress.setSetting('auto', false); });
+    await api('dealSeed', 909);
     check('deux retournements en difficile', (await snap()).redealLimit === 2);
     var limite = await page.evaluate(function () {
       var K = window.__neonKlondike;

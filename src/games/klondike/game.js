@@ -61,6 +61,11 @@
   var piles, stock, waste, found, seed, redeals, history;
   var score, moves, undos, dealCards, startedAt, wonAt;
   var particles, held;
+  /* Les cartes que le joueur a délibérément redescendues d'une fondation : la
+     montée automatique doit les laisser où il les a mises, sinon elles
+     remonteraient aussitôt et le déblocage serait impossible. */
+  var keptDown;
+  var cascade = null;           // la remontée finale, carte après carte
   var run, runStartedAt, runCommitted, overSince = 0;
 
   function conf() { return progress.difficultyById(difficulty); }
@@ -87,6 +92,8 @@
     dealFrom(seed);
     redeals = 0;
     history = [];
+    keptDown = {};
+    stopCascade();
     held = null;
     wonAt = 0;
     dealCards = 0;
@@ -189,7 +196,8 @@
       found: found.slice(),
       redeals: redeals,
       score: score,
-      dealCards: dealCards
+      dealCards: dealCards,
+      keptDown: JSON.parse(JSON.stringify(keptDown))
     };
   }
 
@@ -200,6 +208,7 @@
     found = snap.found.slice();
     redeals = snap.redeals;
     score = snap.score;
+    keptDown = JSON.parse(JSON.stringify(snap.keptDown || {}));
     // Une carte redescendue n'est plus montée : le total de la partie l'oublie.
     if (run) { run.cards -= dealCards - snap.dealCards; }
     dealCards = snap.dealCards;
@@ -215,6 +224,7 @@
 
   /* Monte d'office ce qui ne peut plus servir à personne. */
   function safeHome(card) {
+    if (keptDown[card]) { return false; }   // le joueur l'a voulue en bas
     var r = Cards.rank(card);
     if (found[Cards.suit(card)] !== r) { return false; }
     if (r <= 1) { return true; }
@@ -247,6 +257,100 @@
     return found[0] === 13 && found[1] === 13 && found[2] === 13 && found[3] === 13;
   }
 
+  /* Une carte, n'importe laquelle, qui peut monter tout de suite. */
+  function anyHome() {
+    if (waste.length) {
+      var w = waste[waste.length - 1];
+      if (found[Cards.suit(w)] === Cards.rank(w)) { return { t: 'waste' }; }
+    }
+    for (var i = 0; i < PILES; i++) {
+      var pile = piles[i];
+      if (!pile.length) { continue; }
+      var top = pile[pile.length - 1];
+      if (top.up && found[Cards.suit(top.c)] === Cards.rank(top.c)) {
+        return { t: 'pile', i: i, n: 1 };
+      }
+    }
+    return null;
+  }
+
+  /* Le jeu ne se termine tout seul que s'il va réellement jusqu'au bout : on
+     simule la remontée avant de la lancer. Sans cette prudence, elle
+     s'enclencherait dès que plus rien n'est caché et reprendrait aussitôt la
+     carte que le joueur vient de redescendre pour se débloquer. */
+  function wouldFinish() {
+    var f = found.slice();
+    var tops = piles.map(function (p) {
+      return p.filter(function (e) { return e.up; }).map(function (e) { return e.c; });
+    });
+    var pile = waste.slice();
+    var total = f[0] + f[1] + f[2] + f[3];
+    var bouge = true;
+    while (bouge && total < 52) {
+      bouge = false;
+      if (pile.length) {
+        var w = pile[pile.length - 1];
+        if (f[Cards.suit(w)] === Cards.rank(w)) { f[Cards.suit(w)]++; pile.pop(); total++; bouge = true; }
+      }
+      for (var i = 0; i < tops.length; i++) {
+        var col = tops[i];
+        if (!col.length) { continue; }
+        var c = col[col.length - 1];
+        if (f[Cards.suit(c)] === Cards.rank(c)) { f[Cards.suit(c)]++; col.pop(); total++; bouge = true; }
+      }
+    }
+    return total === 52;
+  }
+
+  function readyToFinish() {
+    return !wonAt && !complete() && hidden() === 0 && !stock.length && wouldFinish();
+  }
+
+  function stopCascade() {
+    if (cascade) { clearInterval(cascade); cascade = null; }
+  }
+
+  function startCascade() {
+    if (cascade) { return; }
+    keptDown = {};
+    cascade = setInterval(function () {
+      if (state !== 'playing' || wonAt) { stopCascade(); return; }
+      var src = anyHome();
+      if (!src) { stopCascade(); return; }
+      var c = cardsOf(src)[0];
+      history.push(snapshot());
+      removeFrom(src, 1);
+      homeBurst(Cards.suit(c));
+      toFoundation(c);
+      audio.bonus();
+      moves++;
+      run.moves++;
+      if (complete()) { stopCascade(); win(); }
+      renderHud();
+    }, 90);
+  }
+
+  /* Monte tout ce qui peut monter, sans attendre : la même remontée, mais
+     immédiate — ce dont les tests ont besoin. */
+  function finishNow() {
+    var n = 0;
+    keptDown = {};
+    var src = anyHome();
+    while (src) {
+      var c = cardsOf(src)[0];
+      history.push(snapshot());
+      removeFrom(src, 1);
+      toFoundation(c);
+      n++;
+      moves++;
+      run.moves++;
+      src = anyHome();
+    }
+    if (complete() && !wonAt) { win(); }
+    renderHud();
+    return n;
+  }
+
   function hidden() {
     return piles.reduce(function (n, p) {
       return n + p.filter(function (e) { return !e.up; }).length;
@@ -264,11 +368,18 @@
     if (dst.t === 'found') {
       homeBurst(dst.i);
       toFoundation(cards[0]);
+      delete keptDown[cards[0]];
       audio.bonus();
     } else {
       cards.forEach(function (c) { piles[dst.i].push({ c: c, up: true }); });
-      if (src.t === 'found') { score = Math.max(0, score - TAKE_BACK); dealCards--; run.cards--; }
-      else if (fromWaste) { score += WASTE_POINTS; }
+      if (src.t === 'found') {
+        score = Math.max(0, score - TAKE_BACK);
+        dealCards--;
+        run.cards--;
+        keptDown[cards[0]] = 1;
+      } else if (fromWaste) { score += WASTE_POINTS; }
+      // Une carte recouverte n'a plus à être protégée de la montée automatique.
+      cards.slice(0, -1).forEach(function (c) { delete keptDown[c]; });
       audio.pickup();
     }
 
@@ -281,6 +392,7 @@
     if (hidden() === 0) { run.allUp = true; }
 
     if (complete()) { win(); }
+    else if (readyToFinish()) { startCascade(); }
     renderHud();
     return true;
   }
@@ -309,6 +421,7 @@
     moves++;
     run.moves++;
     settle(false);
+    if (readyToFinish()) { startCascade(); }
     renderHud();
     return true;
   }
@@ -344,6 +457,7 @@
   }
 
   function win() {
+    stopCascade();
     wonAt = performance.now();
     var seconds = (wonAt - startedAt) / 1000;
     var speed = Math.max(0, Math.round(SPEED_MAX - seconds));
@@ -498,6 +612,18 @@
 
   function slotX(g, index) { return g.pad + index * g.colW + g.gap / 2; }
 
+  /* La défausse étale ses dernières cartes : la carte jouable, celle du dessus,
+     n'est donc pas à l'aplomb de son emplacement. Le dessin et la détection du
+     toucher lisent le même décalage — sans quoi on clique sur la carte qu'on
+     voit et rien ne se passe. */
+  function wasteSpread(g) { return g.cardW * 0.16 * 0.6; }
+
+  function wasteShown(g) { return Math.min(waste.length, pull()); }
+
+  function wasteTopX(g) {
+    return slotX(g, 1) + Math.max(0, wasteShown(g) - 1) * wasteSpread(g);
+  }
+
   /* Où le doigt vient-il de se poser ? La rangée du haut porte la pioche, la
      défausse et les quatre fondations ; le reste, ce sont les colonnes. */
   function locate(pos) {
@@ -505,10 +631,17 @@
     var px = pos.x * g.size, py = pos.y * g.size;
 
     if (py >= g.topY && py <= g.topY + g.cardH) {
+      // La carte du dessus de la défausse d'abord : c'est celle qu'on vise.
+      if (waste.length) {
+        var wx = wasteTopX(g);
+        if (px >= wx && px <= wx + g.cardW) { return { t: 'waste' }; }
+      }
       var slot = Math.floor((px - g.pad) / g.colW);
       if (slot < 0 || slot > 6) { return null; }
       if (slot === 0) { return { t: 'stock' }; }
-      if (slot === 1) { return { t: 'waste' }; }
+      // L'emplacement 2 sépare la défausse des fondations : il lui revient,
+      // puisque c'est là que ses cartes étalées débordent.
+      if (slot === 1 || slot === 2) { return { t: 'waste' }; }
       if (slot >= 3) { return { t: 'found', i: slot - 3 }; }
       return null;
     }
@@ -555,7 +688,7 @@
         src: { t: 'waste' },
         cards: [waste[waste.length - 1]],
         x: pos.x * g.size, y: pos.y * g.size,
-        offX: pos.x * g.size - slotX(g, 1), offY: pos.y * g.size - g.topY,
+        offX: pos.x * g.size - wasteTopX(g), offY: pos.y * g.size - g.topY,
         startX: pos.x * g.size, startY: pos.y * g.size, moved: false
       };
       audio.unlock();
@@ -657,14 +790,14 @@
 
     // La défausse : les dernières cartes tirées, légèrement décalées.
     if (waste.length) {
-      var show = Math.min(waste.length, pull());
-      var spread = g.cardW * 0.16;
+      var show = wasteShown(g);
+      var spread = wasteSpread(g);
       for (k = 0; k < show; k++) {
-        var wx = slotX(g, 1) + (k - (show - 1)) * spread * 0;
         var idx = waste.length - show + k;
         var last = k === show - 1;
         if (held && held.src.t === 'waste' && last) { continue; }
-        card(wx + k * spread * 0.6, g.topY, waste[idx], g.cardH, null, false);
+        card(slotX(g, 1) + k * spread, g.topY, waste[idx], g.cardH,
+             last ? ramp().pick : null, false);
       }
     } else {
       Cards.slot(ctx, slotX(g, 1), g.topY, g.cardW, g.cardH, { ramp: ramp() });
@@ -751,6 +884,7 @@
   function togglePause() {
     if (state === 'playing') {
       state = 'paused';
+      stopCascade();
       held = null;
       panel.show({ title: 'Pause', subtitle: 'La donne t\'attend.', cta: 'Reprendre',
                    hideDifficulty: true, quit: 'Enregistrer et quitter' });
@@ -843,6 +977,8 @@
         waste: waste.slice(),
         found: found.slice(),
         hidden: hidden(),
+        keptDown: Object.keys(keptDown).map(Number),
+        cascading: !!cascade,
         score: score,
         moves: moves,
         undos: undos,
@@ -865,18 +1001,23 @@
     },
     dealSeed: function (n) { setDeal(n); },
     setBoard: function (b) {
+      stopCascade();
       piles = b.piles.map(function (p) { return p.map(function (e) { return { c: e.c, up: e.up }; }); });
       stock = (b.stock || []).slice();
       waste = (b.waste || []).slice();
       found = (b.found || [0, 0, 0, 0]).slice();
       history = [];
+      keptDown = {};
       held = null;
+      if (b.settle) { settle(true); }
       renderHud();
     },
     play: function (src, dst) { return play(src, dst); },
     legal: function (src, dst) { return legal(src, dst); },
     autoPlace: function (src) { return autoPlace(src); },
     drawStock: drawStock,
+    finishNow: finishNow,
+    readyToFinish: readyToFinish,
     undo: undo,
     geometry: geometry,
     slotX: function (i) { return slotX(geometry(), i); },

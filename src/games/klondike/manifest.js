@@ -73,18 +73,19 @@ Games.klondike = (function () {
         'Une colonne vide n\'accepte qu\'un roi — ou une suite qui commence par un roi.',
         'Une suite de cartes retournées se déplace d\'un seul geste, quelle que soit sa longueur.',
         'Découvrir la carte cachée d\'une colonne la retourne aussitôt.',
-        'La pioche retourne une ou trois cartes selon la difficulté ; seule celle du dessus se joue.'
+        'La pioche retourne une ou trois cartes selon la difficulté ; seule celle du dessus se joue — mais elle se glisse dans une colonne comme n\'importe quelle autre, pour débloquer ce qui est dessous.',
+        'Une carte déjà montée peut redescendre dans une colonne pour dégager un passage : la montée automatique la laisse alors où tu l\'as mise.'
       ],
       scoring: [
         'Une carte montée sur une fondation vaut 10 points, une carte retournée 5.',
         'Redescendre une carte d\'une fondation en coûte 15.',
         'La réussite terminée rapporte 300 points, plus un point par seconde gagnée sur cinq minutes, le tout multiplié par la difficulté.'
       ],
-      note: 'Contrairement à Neon Cells, une partie du jeu est cachée, et toutes les donnes ne se gagnent pas : c\'est la nature du Klondike. Le mode facile — une carte à la fois, pioche sans limite — est celui qui en laisse passer le plus.'
+      note: 'Quand plus rien n\'est caché et que la pioche est vide, le jeu monte tout seul les cartes qui restent : la fin de partie se regarde au lieu de se cliquer. Contrairement à Neon Cells, une partie du jeu est cachée, et toutes les donnes ne se gagnent pas : c\'est la nature du Klondike. Le mode facile — une carte à la fois, pioche sans limite — est celui qui en laisse passer le plus.'
     },
 
     settings: [
-      { key: 'auto', type: 'toggle', label: 'Montée automatique', default: false,
+      { key: 'auto', type: 'toggle', label: 'Montée automatique', default: true,
         note: 'Les cartes qui ne servent plus rejoignent seules leur fondation' },
       { key: 'guide', type: 'toggle', label: 'Guider le dépôt', default: true,
         note: 'Éclaire les emplacements qui acceptent la carte tenue' }
