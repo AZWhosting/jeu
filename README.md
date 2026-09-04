@@ -3,7 +3,7 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-15-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-16-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
@@ -22,6 +22,7 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🗼 **Neon Tower** | Monter ou encaisser : le seul jeu où le hasard décide — et il est affiché. |
 | 🂡 **Neon Klondike** | Le solitaire : sept colonnes, une pioche, quatre fondations. |
 | 🕸️ **Neon Spider** | L'araignée : huit suites à tisser, du roi à l'as. |
+| 🔺 **Neon Pyramid** | La pyramide : vingt-huit cartes à défaire deux par deux, en faisant treize. |
 
 Le **hall** (`index.html`) liste les jeux **dans l'ordre du tableau ci-dessus** — celui
 de leur arrivée — et résume la progression commune : parties jouées, temps de jeu, points
@@ -541,19 +542,59 @@ La pioche distribue une carte à **chaque** colonne d'un coup, et **refuse tant 
 colonne est vide** — sinon elle y condamnerait la carte déposée. Une suite descendante
 que ses enseignes empêchent de bouger est grisée, pour qu'on le voie avant d'essayer.
 
-## Trois réussites, un seul paquet
+## 🔺 Neon Pyramid
 
-Klondike, Spider et Cells partagent `src/core/cards.js` : l'encodage des cartes, les
-paquets, le mélange et le **dessin**. Les trois montrent donc exactement les mêmes
+Vingt-huit cartes en sept rangées, chacune recouverte par les deux qui la chevauchent.
+**Deux cartes libres qui totalisent treize s'en vont ensemble** — l'as vaut 1, le valet
+11, la dame 12 — et le roi, qui vaut treize à lui seul, part d'une simple tape. La carte
+du dessus de la défausse compte comme libre : c'est par elle qu'on va chercher ce que la
+pyramide ne fournit pas.
+
+| Mode | Passes de pioche | Ce qui change |
+|---|---|---|
+| Facile | trois | De quoi se tromper et se reprendre |
+| Normal | deux | Le second tour ne pardonne plus grand-chose — prime de 60 % |
+| Difficile | une | Chaque carte piochée se joue maintenant ou jamais — prime de 150 % |
+| **Libre** | trois | Annulation à volonté, rien n'est classé |
+
+**Aucune donne n'est tirée au hasard, et c'est le cœur du jeu.** Une pyramide quelconque
+est presque toujours perdue d'avance : sur des donnes tirées au sort, **3 %** seulement se
+terminent quand la pioche ne passe qu'une fois, et une bonne moitié résiste encore à trois
+passes. Servir cela, ce serait faire chercher un chemin qui n'existe pas.
+
+Un solveur exact a donc joué des milliers de donnes hors ligne et n'a gardé que celles
+qui se terminent **avec exactement le nombre de passes de leur difficulté** :
+`src/games/pyramid/deals.js` en contient 200 à trois passes, 200 à deux et 120 à une
+seule — il a fallu 3 632 essais pour trouver ces 120 dernières. Le numéro de donne suffit
+à les rejouer : le paquet est mélangé par lui, et Node comme le navigateur en tirent la
+même. **La suite de tests embarque son propre solveur, écrit indépendamment, et revérifie
+les 520 donnes à chaque exécution** — la promesse ne vaut que si on la remet en doute.
+
+**L'empilement suit la distribution**, et ce détail décide de la lisibilité : le sommet
+est posé en premier, chaque rangée vient par-dessus la précédente, et une carte se trouve
+donc recouverte par les deux qui sont **sous** elle — exactement celles qui la bloquent.
+Ce qui dépasse est sa bande du haut, index et enseigne compris : tout se lit sans rien
+déplacer. Une carte encore bloquée reste dans l'ombre de celles qui la couvrent — un
+voile sombre, pas une transparence, sinon on lirait à travers la pyramide.
+
+Conséquence directe : une partie perdue l'est parce que le chemin existait et qu'il est
+passé ailleurs. Le jeu le dit dans son panneau de fin plutôt que de laisser le doute.
+Quand plus aucun coup n'est possible, il annonce l'impasse et clôt la partie — ou laisse
+la main pour revenir en arrière, si on a coupé le réglage.
+
+## Quatre réussites, un seul paquet
+
+Cells, Klondike, Spider et Pyramid partagent `src/core/cards.js` : l'encodage des cartes,
+les paquets, le mélange et le **dessin**. Les quatre montrent donc exactement les mêmes
 cartes, et une carte se dessine à un seul endroit.
 
 **Ce que les tests prouvent, et qui compte plus qu'une règle bien écrite :** dans un jeu
 de cartes, le défaut classique ne se voit pas — une carte dupliquée par un déplacement
-mal défait, ou perdue par une annulation. Les deux suites jouent donc **trois cents coups
-au hasard** — déplacements, pioches et annulations mêlés — et vérifient **après chacun**
-que le paquet est intact : 52 cartes distinctes pour le Klondike, 104 en bon nombre pour
-l'araignée, suites envolées comprises. Elles vérifient aussi qu'annuler rend l'état
-**au caractère près**, cartes cachées comprises.
+mal défait, ou perdue par une annulation. Les trois suites jouent donc **trois cents coups
+au hasard** — déplacements, retraits, pioches et annulations mêlés — et vérifient **après
+chacun** que le paquet est intact : 52 cartes distinctes pour le Klondike et la pyramide,
+104 en bon nombre pour l'araignée, suites envolées et cartes retirées comprises. Elles
+vérifient aussi qu'annuler rend l'état **au caractère près**, cartes cachées comprises.
 
 ## Succès, skins et statistiques
 
@@ -615,8 +656,9 @@ src/games/
   tower/manifest.js · game.js · tower.css
   klondike/manifest.js · game.js · klondike.css
   spider/manifest.js · game.js · spider.css
+  pyramid/manifest.js · game.js · deals.js · pyramid.css
 src/hub/hub.js · hub.css      # le hall
-tests/                        # vingt-cinq suites de bout en bout (voir plus bas)
+tests/                        # vingt-six suites de bout en bout (voir plus bas)
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
@@ -633,12 +675,12 @@ au premier chargement, puis effacées.
 
 ## Tests
 
-Vingt-cinq suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
+Vingt-six suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
 jeux, appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 
 ```bash
 npm install && npx playwright install chromium
-npm test                        # les vingt-cinq suites, environ 5 minutes
+npm test                        # les vingt-six suites, environ 6 minutes
 node tests/run.js mines four    # seulement celles dont le nom correspond
 npm start                       # sert le jeu sur http://127.0.0.1:8123
 ```
@@ -683,7 +725,7 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  quinze jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  seize jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
   52 ms), le Tetris fait descendre sa pièce au rythme du niveau (1100 à 70 ms), le
   casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4 ne
   demandent aucun tick — leur boucle ne sert qu'aux animations —, le démineur s'en
@@ -714,14 +756,15 @@ Points techniques notables :
   deviendrait inutilisable pendant la pause. Les tests le vérifient sur quatre tailles
   d'écran, et une fois de plus avec un texte volontairement plus haut.
 - `window.__neonSnake`, `window.__neonBricks`, `window.__neon2048`, `window.__neonMines`,
-  `window.__neonFour`, `window.__neonBlocks`, `window.__neonCrates`, `window.__neonMeow`
-  et `window.__neonCells` exposent un
+  `window.__neonFour`, `window.__neonBlocks`, `window.__neonCrates`, `window.__neonMeow`,
+  `window.__neonCells`, `window.__neonKlondike`, `window.__neonSpider` et
+  `window.__neonPyramid` exposent un
   instantané en lecture seule de la partie, et de quoi placer une situation précise :
   c'est le point d'entrée des tests automatisés dans un navigateur.
 
 ## Idées d'évolution
 
-- Un seizième jeu : un jeu de chemins à relier, ou un Memory.
+- Un dix-septième jeu : un jeu de chemins à relier, ou un Memory.
 - Défi quotidien : une graine déterministe pour que tout le monde joue le même mot ou
   la même donne le même jour.
 - Application installable et hors ligne (manifeste + service worker).

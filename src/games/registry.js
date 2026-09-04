@@ -95,5 +95,11 @@ window.GameRegistry = [
     meta: ['src/games/spider/manifest.js'],
     scripts: ['src/games/spider/game.js'],
     styles: ['src/games/spider/spider.css']
+  },
+  {
+    id: 'pyramid',
+    meta: ['src/games/pyramid/manifest.js'],
+    scripts: ['src/games/pyramid/deals.js', 'src/games/pyramid/game.js'],
+    styles: ['src/games/pyramid/pyramid.css']
   }
 ];
