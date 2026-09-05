@@ -6,7 +6,7 @@ appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 ```bash
 npm install          # récupère Playwright
 npx playwright install chromium
-npm test             # les vingt-six suites
+npm test             # les vingt-huit suites
 node tests/run.js snake four    # seulement celles dont le nom contient ça
 ```
 
@@ -31,7 +31,7 @@ harnais fournit `h.page`, `h.url('snake')`, `h.hub()`, `h.fileUrl('snake')`,
 
 Chaque jeu expose une sonde en lecture seule — `window.__neonSnake`,
 `__neonBricks`, `__neon2048`, `__neonMines`, `__neonFour`, `__neonBlocks`,
-`__neonCrates`, `__neonMeow`, `__neonCells`, `__neonMots`, `__neonEcho`, `__neonPixel`, `__neonTower`, `__neonKlondike`, `__neonSpider`, `__neonPyramid` — qui donne un
+`__neonCrates`, `__neonMeow`, `__neonCells`, `__neonMots`, `__neonEcho`, `__neonPixel`, `__neonTower`, `__neonKlondike`, `__neonSpider`, `__neonPyramid`, `__neonReversi`, `__neonGems` — qui donne un
 instantané de la partie et, pour certains, de quoi poser une situation précise
 (placer une grille, planter des mines, lancer la balle, distribuer une donne
 connue). C'est ce qui permet de
@@ -106,3 +106,19 @@ module.exports = {
   }
 };
 ```
+
+## Les deux adversaires, et les deux garanties
+
+Neon Four et Neon Reversi opposent une IA, et sa force ne se lit pas dans le code. La
+suite de l'othello embarque donc **son propre solveur de fin de partie**, écrit sans rien
+partager avec le jeu : elle construit douze positions à moins de dix cases vides, calcule
+le meilleur écart final atteignable, et vérifie que le coup choisi par le jeu l'atteint.
+Puis elle lui fait jouer vingt parties entières contre un joueur au hasard.
+
+Neon Gems repose sur deux garanties silencieuses — pas d'alignement tout fait sur un
+plateau servi, et toujours au moins un échange possible. Elles sont vérifiées sur
+quarante plateaux neufs, puis après chacun des quelque quatre mille coups de cent parties
+jouées de bout en bout. Un plateau mort y est **fabriqué** plutôt que cherché : on part
+d'un tirage quelconque et on repeint les cases fautives tant qu'il reste un alignement ou
+un échange, jusqu'à ce que la grille n'offre plus rien — puis on vérifie que le jeu la
+remélange sans faire payer un coup.

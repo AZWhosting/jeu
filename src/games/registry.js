@@ -101,5 +101,17 @@ window.GameRegistry = [
     meta: ['src/games/pyramid/manifest.js'],
     scripts: ['src/games/pyramid/deals.js', 'src/games/pyramid/game.js'],
     styles: ['src/games/pyramid/pyramid.css']
+  },
+  {
+    id: 'reversi',
+    meta: ['src/games/reversi/manifest.js'],
+    scripts: ['src/games/reversi/game.js'],
+    styles: ['src/games/reversi/reversi.css']
+  },
+  {
+    id: 'gems',
+    meta: ['src/games/gems/manifest.js'],
+    scripts: ['src/games/gems/game.js'],
+    styles: ['src/games/gems/gems.css']
   }
 ];

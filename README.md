@@ -3,7 +3,7 @@
 Une petite **plateforme de jeux d'arcade** en **HTML / CSS / JavaScript purs** :
 aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 
-![Jeux](https://img.shields.io/badge/jeux-16-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
+![Jeux](https://img.shields.io/badge/jeux-18-38f9c3) ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances-0-38f9c3) ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-ffd166)
 
 | Jeu | Principe |
 |---|---|
@@ -23,6 +23,8 @@ aucune dépendance, aucun build, aucun serveur. Ouvre `index.html` et joue.
 | 🂡 **Neon Klondike** | Le solitaire : sept colonnes, une pioche, quatre fondations. |
 | 🕸️ **Neon Spider** | L'araignée : huit suites à tisser, du roi à l'as. |
 | 🔺 **Neon Pyramid** | La pyramide : vingt-huit cartes à défaire deux par deux, en faisant treize. |
+| ⚪ **Neon Reversi** | L'othello contre une IA qui juge la position et calcule la fin. |
+| 💎 **Neon Gems** | Aligne trois gemmes, la cascade fait le reste. Paliers et quotas. |
 
 Le **hall** (`index.html`) liste les jeux **dans l'ordre du tableau ci-dessus** — celui
 de leur arrivée — et résume la progression commune : parties jouées, temps de jeu, points
@@ -182,7 +184,8 @@ Le score compte 10 points par jeton posé, plus une prime de victoire d'autant p
 grosse que la partie a été courte. Un match nul en rapporte le tiers.
 
 Réglages propres au jeu : qui commence (toi, l'adversaire, ou en alternance) et le
-grisage des colonnes pleines.
+grisage des colonnes pleines. C'est le premier des deux jeux à adversaire de la
+plateforme — l'othello est l'autre, et il demande à son IA tout autre chose.
 
 ## 🟦 Neon Blocks
 
@@ -582,6 +585,83 @@ passé ailleurs. Le jeu le dit dans son panneau de fin plutôt que de laisser le
 Quand plus aucun coup n'est possible, il annonce l'impasse et clôt la partie — ou laisse
 la main pour revenir en arrière, si on a coupé le réglage.
 
+## ⚪ Neon Reversi
+
+L'othello : huit cases sur huit, deux couleurs, et des pions qui changent de camp. On ne
+pose que là où l'on **encadre** au moins une ligne adverse entre le pion posé et un des
+siens ; toute ligne encadrée bascule. Qui ne peut pas poser passe, et l'autre rejoue. La
+partie s'arrête quand plus personne ne peut : le plus grand nombre de pions l'emporte.
+
+| Mode | Profondeur | Fin de partie | Erreurs |
+|---|---|---|---|
+| Facile | 1 coup d'avance | — | deux fois sur cinq |
+| Normal | 4 coups | les 8 dernières cases calculées | rarement |
+| Difficile | 6 coups | les 11 dernières cases calculées | jamais |
+| **Zen** | joue au hasard | — | `U` annule ton dernier coup |
+
+**Son IA ne ressemble pas à celle du puissance 4**, et c'est ce qui rendait ce jeu-là
+intéressant à écrire. Au puissance 4, un alignement tranche : il suffit de chercher le
+coup gagnant. À l'othello rien ne se gagne avant la dernière case, et **il n'y a qu'une
+position à juger**. Trois choses la jugent ici :
+
+- **la valeur des cases** — un coin ne se retourne jamais et vaut 120, ses voisines
+  l'offrent et valent −20 ou −40 ; mais **une case voisine d'un coin cesse d'être
+  empoisonnée dès que ce coin est pris**, et redevient une case ordinaire ;
+- **la mobilité** — l'écart entre le nombre de coups qui restent à chacun, qui compte
+  souvent plus que le nombre de pions ;
+- **le compte des pions**, mais seulement quand la fin approche : avant, avoir la
+  majorité au milieu de la partie ne veut à peu près rien dire.
+
+Et quand il ne reste plus que quelques cases vides, **il cesse d'estimer et calcule** :
+onze cases en difficile, huit en normal, explorées jusqu'à la dernière. La suite de tests
+le vérifie avec son propre solveur, écrit indépendamment — sur douze fins de partie
+construites au hasard, le coup qu'il choisit atteint à chaque fois **le meilleur écart
+final atteignable**. Et sur vingt parties complètes contre un joueur au hasard, il gagne
+les vingt.
+
+Une note d'écriture : la recherche allouait un tableau de pions retournés pour chaque
+case du plateau, à chaque évaluation. La remplacer par un simple test booléen sans
+allocation a divisé le temps de la suite par plus de quatre — et rendu l'adversaire
+instantané.
+
+## 💎 Neon Gems
+
+Échanger deux gemmes voisines pour en aligner trois, qui disparaissent, ce qui fait
+tomber celles du dessus — et parfois repart tout seul. C'est la mécanique qui manquait :
+Neon 2048 fusionne mais n'enchaîne pas, le Tetris fait tomber mais n'échange pas.
+
+Le jeu s'organise en **paliers** : un quota de points à atteindre dans un nombre de coups
+donné. Le rater arrête la partie ; l'atteindre en ouvre un plus haut, avec le même
+plateau et un budget tout neuf.
+
+| Mode | Couleurs | Coups par palier | Quota |
+|---|---|---|---|
+| Facile | cinq | 26 | 1 000, +700 par palier |
+| Normal | six | 24 | 1 000, +600 par palier |
+| Difficile | sept | 22 | 1 000, +500 par palier |
+| **Détente** | six | 60 en tout | aucun quota, rien n'est classé |
+
+Le quota monte **moins vite** quand la difficulté monte : à sept couleurs les alignements
+se font rares, et c'est le plateau qui fait le travail. Les nombres ne sont pas au
+jugé — ils sortent d'une simulation de douze parties par difficulté, jouées au hasard
+dans le vrai jeu, qui situe le hasard aux paliers 5, 3 et 2.
+
+Deux choses font la profondeur : la **cascade**, dont chaque relance vaut plus cher
+(×1, ×2, jusqu'à ×5), et la **gemme chargée**, que laisse tout alignement de quatre ou
+plus — la faire disparaître emporte sa ligne et sa colonne entières.
+
+**Ce que le jeu garantit, et que les tests vérifient :** un plateau servi ne contient
+jamais d'alignement tout fait, et propose toujours au moins un échange possible. Sans
+cela, la partie commencerait en marquant des points toute seule, ou le joueur chercherait
+devant une grille morte. Les deux sont contrôlés à chaque distribution — et quand le jeu
+finit par se bloquer en cours de partie, **il remélange les mêmes gemmes, sans coûter un
+coup**. La suite éprouve les deux garanties sur quarante plateaux neufs, puis après
+chacun des quelque quatre mille coups de cent parties jouées de bout en bout.
+
+Chaque couleur a aussi **sa forme** — rond, carré, losange, triangle, hexagone, étoile,
+goutte — pour que le plateau reste lisible quand deux teintes se ressemblent, ou qu'on
+les distingue mal.
+
 ## Quatre réussites, un seul paquet
 
 Cells, Klondike, Spider et Pyramid partagent `src/core/cards.js` : l'encodage des cartes,
@@ -657,8 +737,10 @@ src/games/
   klondike/manifest.js · game.js · klondike.css
   spider/manifest.js · game.js · spider.css
   pyramid/manifest.js · game.js · deals.js · pyramid.css
+  reversi/manifest.js · game.js · reversi.css
+  gems/manifest.js · game.js · gems.css
 src/hub/hub.js · hub.css      # le hall
-tests/                        # vingt-six suites de bout en bout (voir plus bas)
+tests/                        # vingt-huit suites de bout en bout (voir plus bas)
 ```
 
 **Le manifeste est le contrat.** Un jeu y déclare son nom, ses difficultés, ses
@@ -675,12 +757,12 @@ au premier chargement, puis effacées.
 
 ## Tests
 
-Vingt-six suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
+Vingt-huit suites de bout en bout, jouées dans un vrai navigateur : elles lancent les
 jeux, appuient sur les touches, cliquent, et vérifient ce que le joueur verrait.
 
 ```bash
 npm install && npx playwright install chromium
-npm test                        # les vingt-six suites, environ 6 minutes
+npm test                        # les vingt-huit suites, environ 7 minutes
 node tests/run.js mines four    # seulement celles dont le nom correspond
 npm start                       # sert le jeu sur http://127.0.0.1:8123
 ```
@@ -698,8 +780,9 @@ chargement qui survivait à une réinitialisation, le cache périmé qui rendait
 boutons du menu inertes, le panneau de fin de partie coupé net par le bord du
 plateau — dont la première correction, en le sortant du plateau, rendait la barre
 d'outils inaccessible pendant la pause —, un dessin de picross qu'aucune déduction ne
-permettait de résoudre, et des compteurs de fautes qui se cumulaient d'un dessin à
-l'autre au lieu de repartir de zéro.
+permettait de résoudre, des compteurs de fautes qui se cumulaient d'un dessin à
+l'autre au lieu de repartir de zéro, et un rayon de dessin devenu négatif quand
+l'horloge du rendu prenait du retard sur celle des animations.
 
 ## Ajouter un jeu
 
@@ -725,7 +808,7 @@ Points techniques notables :
 
 - **Boucle à pas fixe, rendu interpolé** (`core/loop.js`) : la logique avance par
   ticks réguliers dont le jeu fixe la durée, le rendu interpole entre deux ticks. Les
-  seize jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
+  dix-huit jeux l'utilisent différemment : le Snake avance d'une case par tick (150 à
   52 ms), le Tetris fait descendre sa pièce au rythme du niveau (1100 à 70 ms), le
   casse-briques simule sa balle à 120 pas par seconde, 2048 et le puissance 4 ne
   demandent aucun tick — leur boucle ne sert qu'aux animations —, le démineur s'en
@@ -764,7 +847,7 @@ Points techniques notables :
 
 ## Idées d'évolution
 
-- Un dix-septième jeu : un jeu de chemins à relier, ou un Memory.
+- Un dix-neuvième jeu : un jeu de chemins à relier, un Sudoku, ou un Memory.
 - Défi quotidien : une graine déterministe pour que tout le monde joue le même mot ou
   la même donne le même jour.
 - Application installable et hors ligne (manifeste + service worker).
